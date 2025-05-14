@@ -10,8 +10,11 @@ class Config:
         # توکن بات
         self.token = os.getenv("BOT_TOKEN")
 
-        # آدرس دیتابیس (اختیاری، مقدار پیش‌فرض SQLite)
+        # آدرس دیتابیس (مقدار پیش‌فرض SQLite)
         self.database_url = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///db.sqlite3")
+
+        # لیست ادمین‌ها (آیدی‌های عددی، جدا شده با کاما)
+        self.admins = [int(i) for i in os.getenv("ADMINS", "").split(",") if i.strip().isdigit()]
 
 
 def load_config():

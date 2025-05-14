@@ -2,6 +2,9 @@ import sqlalchemy
 import sqlite3
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
+from bot.config import load_config
+config = load_config()
+ADMINS = config.admins
 
 Base = declarative_base()  # ایجاد کلاس پایه برای مدل‌ها
 
