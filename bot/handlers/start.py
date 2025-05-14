@@ -1,9 +1,10 @@
-from aiogram import types, Dispatcher
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+# bot/handlers/start.py
 
-def register_start_handlers(dp: Dispatcher):
-    @dp.message(commands=["start"])
-    async def cmd_start(message: types.Message):
-        keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
-        keyboard.add(KeyboardButton("🛒 خرید اپل آیدی"))
-        await message.answer("سلام! به ربات فروش اپل آیدی خوش آمدید.", reply_markup=keyboard)
+from aiogram import Router, F
+from aiogram.types import Message
+
+router = Router()
+
+@router.message(F.text == "/start")
+async def start_handler(message: Message):
+    await message.answer("سلام! به ربات خوش اومدی 🌟")

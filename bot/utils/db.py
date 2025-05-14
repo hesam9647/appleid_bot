@@ -1,52 +1,41 @@
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String, Float
-from sqlalchemy.orm import sessionmaker
+import aiosqlite
 
-Base = declarative_base()
-session_maker = None
-
-class User(Base):
-    __tablename__ = "users"
-    id = Column(Integer, primary_key=True)
-    blocked = Column(Integer, default=0)
-
-class Product(Base):
-    __tablename__ = "products"
-    id = Column(Integer, primary_key=True)
-    name = Column(String)
-    price = Column(Float)
-
-async def create_db(url):
-    global session_maker
-    engine = create_async_engine(url)
-    session_maker = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+async def create_db(database_url):
+    db_path = database_url.split("///")[-1]
+    async with aiosqlite.connect(db_path) as db:
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY
+            );
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS products (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT,
+                price INTEGER
+            );
+        """)
+        await db.commit()
 
 async def get_stats():
-    async with session_maker() as session:
-        users = await session.execute("SELECT COUNT(*) FROM users")
-        sales = await session.execute("SELECT COUNT(*) FROM products")
-        txs = 0
-        return users.scalar(), sales.scalar(), txs
+    async with aiosqlite.connect("db.sqlite3") as db:
+        u = await db.execute("SELECT COUNT(*) FROM users")
+        s = await db.execute("SELECT SUM(price) FROM products")
+        t = await db.execute("SELECT COUNT(*) FROM products")
+        users = (await u.fetchone())[0]
+        sales = (await s.fetchone())[0] or 0
+        txs = (await t.fetchone())[0]
+        return users, sales, txs
 
 async def add_product(name, price):
-    async with session_maker() as session:
-        session.add(Product(name=name, price=price))
-        await session.commit()
+    async with aiosqlite.connect("db.sqlite3") as db:
+        await db.execute("INSERT INTO products (name, price) VALUES (?, ?)", (name, price))
+        await db.commit()
 
 async def get_products():
-    async with session_maker() as session:
-        result = await session.execute("SELECT * FROM products")
-        return result.fetchall()
+    async with aiosqlite.connect("db.sqlite3") as db:
+        cursor = await db.execute("SELECT * FROM products")
+        return await cursor.fetchall()
 
-async def block_user(user_id):
-    async with session_maker() as session:
-        await session.execute(f"INSERT OR REPLACE INTO users (id, blocked) VALUES ({user_id}, 1)")
-        await session.commit()
-
-async def unblock_user(user_id):
-    async with session_maker() as session:
-        await session.execute(f"UPDATE users SET blocked = 0 WHERE id = {user_id}")
-        await session.commit()
+async def block_user(user_id): pass  # می‌تونی جدول بلاک شده‌ها اضافه کنی
+async def unblock_user(user_id): pass
