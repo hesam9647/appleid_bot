@@ -1,11 +1,8 @@
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
-def get_admin_keyboard():
-    keyboard = InlineKeyboardMarkup(row_width=2)
-    keyboard.add(
-        InlineKeyboardButton(text="آمار فروش", callback_data="stats"),
-        InlineKeyboardButton(text="افزودن محصول", callback_data="add_product"),
-        InlineKeyboardButton(text="مسدود کردن کاربر", callback_data="block_user"),
-        InlineKeyboardButton(text="آزاد کردن کاربر", callback_data="unblock_user")
-    )
-    return keyboard
+def admin_keyboard():
+    markup = InlineKeyboardMarkup()
+    button1 = InlineKeyboardButton("مدیریت تراکنش‌ها", callback_data="manage_transactions")
+    button2 = InlineKeyboardButton("مدیریت کاربران", callback_data="manage_users")
+    markup.add(button1, button2)
+    return markup

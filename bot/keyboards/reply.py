@@ -1,15 +1,9 @@
+# bot/keyboards/reply.py
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
-def main_menu():
-    return ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton("🛒 خرید اپل آیدی")]], resize_keyboard=True
-    )
-
 def admin_menu():
-    return ReplyKeyboardMarkup(
-        keyboard=[
-            [KeyboardButton("📊 آمار")],
-            [KeyboardButton("➕ افزودن محصول")]
-        ], resize_keyboard=True
-    )
-
+    keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
+    button1 = KeyboardButton("/stats")
+    button2 = KeyboardButton("/addproduct")
+    keyboard.add(button1, button2)
+    return keyboard

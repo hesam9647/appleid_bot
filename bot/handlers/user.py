@@ -1,18 +1,15 @@
 from aiogram import types
-from aiogram import Router  # تغییر به Router به جای Dispatcher
-from aiogram.filters import Command
-from bot.utils.db import get_products
-from bot.keyboards.inline import product_buttons
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from bot.utils.db import get_user_balance
 
-router = Router()  # تعریف Router
+async def show_main_menu(message: types.Message):
+    markup = ReplyKeyboardMarkup(resize_keyboard=True)
+    button1 = KeyboardButton("مشاهده جزئیات حساب")
+    button2 = KeyboardButton("خرید اپل آیدی")
+    markup.add(button1, button2)
+    await message.answer("لطفا یک گزینه را انتخاب کنید.", reply_markup=markup)
 
-@router.message(lambda message: message.text == "🛒 خرید اپل آیدی")
-async def list_products(message: types.Message):
-    products = await get_products()
-    if not products:
-        return await message.answer("هیچ محصولی موجود نیست.")
-    await message.answer("لطفاً یک محصول را انتخاب کنید:", reply_markup=product_buttons(products))
-
-# اضافه کردن router به دیسپچر
-def register_router(dp):
-    dp.include_router(router)
+async def view_account_details(message: types.Message):
+    user_balance = get_user_balance(message.from_user.id)
+    response = f"موجودی شما: {user_balance} تومان"
+    await message.answer(response)
