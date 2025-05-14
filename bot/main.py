@@ -26,3 +26,8 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
+# در اینجا تابع `register_routers` را تعریف می‌کنیم
+def register_routers(dp):
+    # در اینجا دستورات مربوط به ثبت روت‌ها (routes) یا هندلرها را قرار دهید
+    pass  # این خط را به دلخواه خود تکمیل کنید
