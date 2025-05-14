@@ -1,7 +1,7 @@
+# bot/config.py
 import os
 from dotenv import load_dotenv
 
-# بارگذاری فایل .env
 load_dotenv()
 
 def load_config():
