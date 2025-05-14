@@ -1,33 +1,39 @@
-import asyncio
 from aiogram import Bot, Dispatcher, types
-from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import Message
+from aiogram.enums import ParseMode
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from aiogram.client.default import DefaultBotProperties
 from aiogram import F
+import asyncio
 
 from bot.config import load_config
 
-# بارگذاری تنظیمات
 config = load_config()
-BOT_TOKEN = config["token"]
+BOT_TOKEN = config['token']
 
-# ساخت بات و دیسپچر
-bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher(storage=MemoryStorage())
+# ساخت ربات با تنظیمات پیش‌فرض
+bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+dp = Dispatcher()
 
-# هندلر /start
+# هندلر دستور /start برای همه کاربران
 @dp.message(F.text == "/start")
-async def cmd_start(message: Message):
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.add(
-        types.KeyboardButton("مشاهده جزئیات حساب"),
-        types.KeyboardButton("خرید اپل آیدی")
+async def cmd_start(message: types.Message):
+    markup = ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="🛒 خرید اپل آیدی")],
+            [KeyboardButton(text="ℹ️ راهنما"), KeyboardButton(text="📞 پشتیبانی")]
+        ],
+        resize_keyboard=True
     )
-    await message.answer("سلام! به ربات فروش اپل آیدی خوش آمدید.", reply_markup=markup)
 
-# تابع main برای راه‌اندازی ربات
+    await message.answer(
+        "سلام! 👋\nبه ربات فروش اپل آیدی خوش آمدید.\nلطفاً از منوی زیر یک گزینه را انتخاب کنید:",
+        reply_markup=markup
+    )
+
+# راه‌اندازی ربات
 async def main():
+    print("✅ ربات با موفقیت اجرا شد.")
     await dp.start_polling(bot)
 
-# اجرای برنامه
 if __name__ == "__main__":
     asyncio.run(main())
