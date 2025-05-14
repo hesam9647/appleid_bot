@@ -1,117 +1,74 @@
-from aiogram import types, F, Dispatcher
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
+# bot/handlers/admin.py
+from aiogram import types, Dispatcher
 from bot.utils.db import get_stats, add_product, get_products, block_user, unblock_user
-from bot.config import ADMINS
+from aiogram.types import Message
+
+# بررسی ادمین بودن
+def is_admin(user_id: int, admins: list):
+    return user_id in admins
 
 
-# ⚙️ دکمه‌های پنل ادمین
-def get_admin_panel_keyboard():
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📊 آمار کلی", callback_data="admin_stats")],
-        [InlineKeyboardButton(text="➕ افزودن محصول", callback_data="admin_add_product")],
-        [InlineKeyboardButton(text="📦 لیست محصولات", callback_data="admin_list_products")],
-        [InlineKeyboardButton(text="⛔ مسدود کردن کاربر", callback_data="admin_block_user")],
-        [InlineKeyboardButton(text="✅ رفع مسدودیت", callback_data="admin_unblock_user")],
-    ])
-
-
-# 📍 دستور /admin برای باز کردن پنل
-async def cmd_admin_panel(message: types.Message):
-    if message.from_user.id not in ADMINS:
+# نمایش آمار
+async def cmd_stats(message: Message, admins: list):
+    if not is_admin(message.from_user.id, admins):
         return await message.answer("❌ شما ادمین نیستید.")
-    await message.answer("📍 به پنل مدیریت خوش آمدید:", reply_markup=get_admin_panel_keyboard())
+    users, sales, txs = await get_stats()
+    await message.answer(f"""📊 آمار:
+👥 کاربران: {users}
+💰 فروش: {sales}
+🔁 تراکنش‌ها: {txs}""")
 
-
-# 📊 آمار
-async def cmd_stats(message: types.Message):
-    if message.from_user.id not in ADMINS:
-        return await message.answer("❌ شما ادمین نیستید.")
-    users_count, sales_count, transactions_count = get_stats()
-    await message.answer(f"تعداد کاربران: {users_count}\n"
-                         f"تعداد فروش‌ها: {sales_count}\n"
-                         f"تعداد تراکنش‌ها: {transactions_count}")
-
-
-# ➕ افزودن محصول
-async def cmd_add_product(message: types.Message):
-    if message.from_user.id not in ADMINS:
-        return
-    args = message.text.split(' ', 2)
+# افزودن محصول
+async def cmd_add_product(message: Message, admins: list):
+    if not is_admin(message.from_user.id, admins):
+        return await message.answer("❌ دسترسی ندارید.")
+    args = message.text.split(" ", 2)
     if len(args) < 3:
-        return await message.answer("لطفاً به‌صورت `/addproduct نام قیمت` وارد کنید.")
+        return await message.answer("❗️فرمت صحیح: /addproduct نام قیمت")
+    name = args[1]
     try:
-        name = args[1]
         price = float(args[2])
-        add_product(name, price)
-        await message.answer(f"✅ محصول '{name}' با قیمت {price} تومان اضافه شد.")
-    except ValueError:
-        await message.answer("⚠️ قیمت نامعتبر است.")
-
-
-# 📦 لیست محصولات
-async def cmd_list_products(message: types.Message):
-    if message.from_user.id not in ADMINS:
-        return
-    products = get_products()
-    if not products:
-        await message.answer("هیچ محصولی وجود ندارد.")
-    else:
-        text = "\n".join([f"{p[1]} - {p[2]} تومان" for p in products])
-        await message.answer(f"📦 محصولات:\n{text}")
-
-
-# ⛔ بلاک کاربر
-async def cmd_block_user(message: types.Message):
-    if message.from_user.id not in ADMINS:
-        return
-    try:
-        user_id = int(message.text.split(' ')[1])
-        block_user(user_id)
-        await message.answer(f"⛔ کاربر {user_id} مسدود شد.")
     except:
-        await message.answer("لطفاً آیدی عددی کاربر را وارد کنید.")
+        return await message.answer("❗️قیمت باید عدد باشد.")
+    await add_product(name, price)
+    await message.answer(f"✅ محصول '{name}' با قیمت {price} اضافه شد.")
 
+# لیست محصولات
+async def cmd_list_products(message: Message, admins: list):
+    if not is_admin(message.from_user.id, admins):
+        return await message.answer("❌ دسترسی ندارید.")
+    products = await get_products()
+    if not products:
+        return await message.answer("❌ هیچ محصولی ثبت نشده است.")
+    text = '\n'.join([f"{p[1]} - {p[2]} تومان" for p in products])
+    await message.answer(f"📦 محصولات:\n{text}")
 
-# ✅ رفع بلاک
-async def cmd_unblock_user(message: types.Message):
-    if message.from_user.id not in ADMINS:
-        return
+# مسدود کردن کاربر
+async def cmd_block_user(message: Message, admins: list):
+    if not is_admin(message.from_user.id, admins):
+        return await message.answer("❌ دسترسی ندارید.")
     try:
-        user_id = int(message.text.split(' ')[1])
-        unblock_user(user_id)
+        user_id = int(message.text.split()[1])
+        await block_user(user_id)
+        await message.answer(f"🚫 کاربر {user_id} مسدود شد.")
+    except:
+        await message.answer("❗️فرمت صحیح: /block user_id")
+
+# آزاد کردن کاربر
+async def cmd_unblock_user(message: Message, admins: list):
+    if not is_admin(message.from_user.id, admins):
+        return await message.answer("❌ دسترسی ندارید.")
+    try:
+        user_id = int(message.text.split()[1])
+        await unblock_user(user_id)
         await message.answer(f"✅ کاربر {user_id} آزاد شد.")
     except:
-        await message.answer("لطفاً آیدی عددی کاربر را وارد کنید.")
+        await message.answer("❗️فرمت صحیح: /unblock user_id")
 
-
-# 🎯 هندلر دکمه‌های پنل ادمین
-async def process_admin_buttons(callback: CallbackQuery):
-    if callback.from_user.id not in ADMINS:
-        return await callback.answer("شما ادمین نیستید.", show_alert=True)
-
-    data = callback.data
-    msg = callback.message
-
-    if data == "admin_stats":
-        await cmd_stats(msg)
-    elif data == "admin_add_product":
-        await msg.answer("لطفاً از دستور /addproduct نام قیمت استفاده کنید.")
-    elif data == "admin_list_products":
-        await cmd_list_products(msg)
-    elif data == "admin_block_user":
-        await msg.answer("لطفاً از دستور /block [user_id] استفاده کنید.")
-    elif data == "admin_unblock_user":
-        await msg.answer("لطفاً از دستور /unblock [user_id] استفاده کنید.")
-
-    await callback.answer()
-
-
-# 📌 ثبت هندلرها
-def register_admin_handlers(dp: Dispatcher):
-    dp.message.register(cmd_admin_panel, commands=["admin"])
-    dp.message.register(cmd_stats, commands=["stats"])
-    dp.message.register(cmd_add_product, commands=["addproduct"])
-    dp.message.register(cmd_list_products, commands=["listproducts"])
-    dp.message.register(cmd_block_user, commands=["block"])
-    dp.message.register(cmd_unblock_user, commands=["unblock"])
-    dp.callback_query.register(process_admin_buttons, F.data.startswith("admin_"))
+# ثبت هندلرها
+def register_admin_handlers(dp: Dispatcher, admins: list):
+    dp.message.register(lambda m: cmd_stats(m, admins), commands=["stats"])
+    dp.message.register(lambda m: cmd_add_product(m, admins), commands=["addproduct"])
+    dp.message.register(lambda m: cmd_list_products(m, admins), commands=["listproducts"])
+    dp.message.register(lambda m: cmd_block_user(m, admins), commands=["block"])
+    dp.message.register(lambda m: cmd_unblock_user(m, admins), commands=["unblock"])

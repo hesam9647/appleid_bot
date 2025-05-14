@@ -1,100 +1,52 @@
-import sqlalchemy
-import sqlite3
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker, declarative_base
-from bot.config import load_config
-config = load_config()
-ADMINS = config.admins
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Integer, String, Float
+from sqlalchemy.orm import sessionmaker
 
-Base = declarative_base()  # ایجاد کلاس پایه برای مدل‌ها
+Base = declarative_base()
+session_maker = None
 
-async def create_db(database_url):
-    # ساخت ارتباط با دیتابیس به صورت غیر همزمان
-    engine = create_async_engine(database_url, echo=True)
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True)
+    blocked = Column(Integer, default=0)
 
-    # ساخت جلسه به صورت غیر همزمان
-    async_session = sessionmaker(
-        engine,
-        class_=AsyncSession,
-        expire_on_commit=False,
-    )
+class Product(Base):
+    __tablename__ = "products"
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    price = Column(Float)
 
-    # ایجاد جداول برای تمامی مدل‌ها
+async def create_db(url):
+    global session_maker
+    engine = create_async_engine(url)
+    session_maker = sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    # اتصال به دیتابیس و انجام عملیات در صورت نیاز
-    async with async_session() as session:
-        async with session.begin():
-            pass  # می‌توانید عملیات دیتابیس خود را در اینجا انجام دهید
+async def get_stats():
+    async with session_maker() as session:
+        users = await session.execute("SELECT COUNT(*) FROM users")
+        sales = await session.execute("SELECT COUNT(*) FROM products")
+        txs = 0
+        return users.scalar(), sales.scalar(), txs
 
-    print("✅ دیتابیس به درستی ایجاد شد.")
+async def add_product(name, price):
+    async with session_maker() as session:
+        session.add(Product(name=name, price=price))
+        await session.commit()
 
-def create_stats_table():
-    conn = sqlite3.connect('db.sqlite3')
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS stats (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    users_count INTEGER,
-                    sales_count INTEGER,
-                    transactions_count INTEGER
-                )''')
-    conn.commit()
-    conn.close()
+async def get_products():
+    async with session_maker() as session:
+        result = await session.execute("SELECT * FROM products")
+        return result.fetchall()
 
-def get_stats():
-    conn = sqlite3.connect('db.sqlite3')
-    c = conn.cursor()
-    c.execute('SELECT * FROM stats ORDER BY id DESC LIMIT 1')
-    result = c.fetchone()
-    conn.close()
-    return result if result else (0, 0, 0)
+async def block_user(user_id):
+    async with session_maker() as session:
+        await session.execute(f"INSERT OR REPLACE INTO users (id, blocked) VALUES ({user_id}, 1)")
+        await session.commit()
 
-def create_products_table():
-    conn = sqlite3.connect('db.sqlite3')
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS products (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    name TEXT,
-                    price REAL
-                )''')
-    conn.commit()
-    conn.close()
-
-def add_product(name, price):
-    conn = sqlite3.connect('db.sqlite3')
-    c = conn.cursor()
-    c.execute('INSERT INTO products (name, price) VALUES (?, ?)', (name, price))
-    conn.commit()
-    conn.close()
-
-def get_products():
-    conn = sqlite3.connect('db.sqlite3')
-    c = conn.cursor()
-    c.execute('SELECT * FROM products')
-    products = c.fetchall()
-    conn.close()
-    return products
-
-
-def block_user(user_id):
-    conn = sqlite3.connect('db.sqlite3')
-    c = conn.cursor()
-    c.execute('INSERT INTO blocked_users (user_id) VALUES (?)', (user_id,))
-    conn.commit()
-    conn.close()
-
-def unblock_user(user_id):
-    conn = sqlite3.connect('db.sqlite3')
-    c = conn.cursor()
-    c.execute('DELETE FROM blocked_users WHERE user_id = ?', (user_id,))
-    conn.commit()
-    conn.close()
-
-def get_blocked_users():
-    conn = sqlite3.connect('db.sqlite3')
-    c = conn.cursor()
-    c.execute('SELECT user_id FROM blocked_users')
-    users = c.fetchall()
-    conn.close()
-    return [user[0] for user in users]
+async def unblock_user(user_id):
+    async with session_maker() as session:
+        await session.execute(f"UPDATE users SET blocked = 0 WHERE id = {user_id}")
+        await session.commit()

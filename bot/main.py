@@ -2,33 +2,24 @@ import asyncio
 from aiogram import Bot, Dispatcher
 from aiogram.fsm.storage.memory import MemoryStorage
 from dotenv import load_dotenv
-from bot.handlers.admin import register_admin_handlers  # اضافه کن
-
-from bot.config import Config
+from bot.config import load_config
 from bot.utils.db import create_db
-from bot.handlers import start  # ✅ اضافه شد
-# فایل bot/main.py
-from bot.handlers.start import register_start_handlers  # اصلاح شده
-def register_routers(dp):
-    register_start_handlers(dp)
-    register_admin_handlers(dp)  # ✅ اضافه کن برای وصل کردن admin handler
+from bot.handlers.start import register_start_handlers
+from bot.handlers.admin import register_admin_handlers
+from bot.handlers.user import register_user_handlers
 
-
-def register_routers(dp):
-    register_start_handlers(dp)  # ثبت هندلرهای شروع
-    
 load_dotenv()
 
 async def main():
-    config = Config()
+    config = load_config()
     bot = Bot(token=config.token, parse_mode="HTML")
     dp = Dispatcher(storage=MemoryStorage())
 
-    # ثبت همه روت‌ها
-    register_routers(dp)
-
-    # ساخت دیتابیس
     await create_db(config.database_url)
+
+    register_start_handlers(dp)
+    register_admin_handlers(dp, config.admins)
+    register_user_handlers(dp)
 
     print("🤖 ربات اجرا شد!")
     await dp.start_polling(bot)
