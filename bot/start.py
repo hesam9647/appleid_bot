@@ -1,39 +1,49 @@
-from aiogram import Bot, Dispatcher, types
-from aiogram.enums import ParseMode
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
-from aiogram.client.default import DefaultBotProperties
-from aiogram import F
 import asyncio
+import os
+from aiogram import Bot, Dispatcher, types, F
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from dotenv import load_dotenv
+from bot.utils import db
 
-from bot.config import load_config
+# بارگذاری فایل .env
+load_dotenv()
 
-config = load_config()
-BOT_TOKEN = config['token']
+# گرفتن توکن از .env
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-# ساخت ربات با تنظیمات پیش‌فرض
-bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+# تعریف ربات و دیسپچر
+bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-# هندلر دستور /start برای همه کاربران
+# هندلر استارت
 @dp.message(F.text == "/start")
-async def cmd_start(message: types.Message):
+async def start_cmd(message: types.Message):
+    db.add_user(
+        user_id=message.from_user.id,
+        full_name=message.from_user.full_name,
+        username=message.from_user.username
+    )
+
     markup = ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="🛒 خرید اپل آیدی")],
-            [KeyboardButton(text="ℹ️ راهنما"), KeyboardButton(text="📞 پشتیبانی")]
+            [KeyboardButton(text="👜 کیف پول من"), KeyboardButton(text="🛍 سفارش‌های من")],
+            [KeyboardButton(text="🎫 تیکت و پشتیبانی")]
         ],
         resize_keyboard=True
     )
+    await message.answer("سلام! به پنل کاربری خوش آمدید.", reply_markup=markup)
 
-    await message.answer(
-        "سلام! 👋\nبه ربات فروش اپل آیدی خوش آمدید.\nلطفاً از منوی زیر یک گزینه را انتخاب کنید:",
-        reply_markup=markup
-    )
+# هندلر کیف پول
+@dp.message(F.text == "👜 کیف پول من")
+async def wallet(message: types.Message):
+    balance = db.get_wallet(message.from_user.id)
+    await message.answer(f"موجودی کیف پول شما: {balance} تومان")
 
-# راه‌اندازی ربات
+# تابع اصلی
 async def main():
-    print("✅ ربات با موفقیت اجرا شد.")
-    await dp.start_polling(bot)
+    print("🤖 Bot is running...")
+    await dp.start_polling(bot, skip_updates=True)
 
 if __name__ == "__main__":
     asyncio.run(main())
