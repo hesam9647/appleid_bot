@@ -12,7 +12,7 @@ def init_db():
         user_id INTEGER PRIMARY KEY,
         full_name TEXT,
         username TEXT,
-        wallet INTEGER DEFAULT 0
+        balance INTEGER DEFAULT 0
     )
     """)
 
@@ -47,18 +47,18 @@ def add_user(user_id: int, full_name: str, username: str):
     conn.commit()
     conn.close()
 
-def get_wallet(user_id: int) -> int:
+def get_user_balance(user_id: int) -> int:
     conn = connect()
     cur = conn.cursor()
-    cur.execute("SELECT wallet FROM users WHERE user_id = ?", (user_id,))
+    cur.execute("SELECT balance FROM users WHERE user_id = ?", (user_id,))
     result = cur.fetchone()
     conn.close()
     return result[0] if result else 0
 
-def update_wallet(user_id: int, amount: int):
+def update_balance(user_id: int, amount: int):
     conn = connect()
     cur = conn.cursor()
-    cur.execute("UPDATE users SET wallet = wallet + ? WHERE user_id = ?", (amount, user_id))
+    cur.execute("UPDATE users SET balance = balance + ? WHERE user_id = ?", (amount, user_id))
     conn.commit()
     conn.close()
 
@@ -103,5 +103,3 @@ def get_user(user_id):
     user = cursor.fetchone()
     conn.close()
     return user
-
-
