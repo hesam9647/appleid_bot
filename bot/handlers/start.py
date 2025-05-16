@@ -1,6 +1,6 @@
 from aiogram import types
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
-from bot.utils.db import get_wallet, update_wallet
+from bot.utils.db import get_user_balance, update_balance
 
 async def on_start(message: types.Message):
     markup = ReplyKeyboardMarkup(resize_keyboard=True)
