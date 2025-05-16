@@ -1,19 +1,19 @@
-import asyncio
 from aiogram import Bot, Dispatcher
-from bot.handlers import start  # فرض بر این است که start_router در این ماژول هست
+from bot.handlers import start
 from bot.utils import db
 from bot.config import load_config
+import asyncio
 
 config = load_config()
-BOT_TOKEN = config["token"]  # مطمئن شو که توکن درست بارگذاری شده
+BOT_TOKEN = config["token"]
 
 bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher()  # Dispatcher بدون آرگومان
+dp = Dispatcher()
 
-dp.include_router(start.start_router)  # اضافه کردن روت‌ها
+dp.include_router(start.start_router)
 
 async def main():
-    db.init_db()  # ساخت جداول دیتابیس در صورت نیاز
+    db.init_db()
     print("🤖 ربات اجرا شد!")
     try:
         await dp.start_polling(bot)
