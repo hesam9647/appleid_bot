@@ -1,32 +1,24 @@
-# bot/config.py
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
 def load_config():
-    # توکن ربات تلگرام
     BOT_TOKEN = os.getenv("BOT_TOKEN")
-    
-    # در صورتی که توکن معتبر نباشد، برنامه را متوقف می‌کند
     if not BOT_TOKEN:
         raise ValueError("توکن ربات معتبر نیست! لطفاً آن را در فایل .env وارد کنید.")
-    
-    # تنظیمات دیتابیس (اگر استفاده می‌کنید)
-    DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///db.sqlite3")  # پیش‌فرض sqlite
 
-    # درگاه‌های پرداخت
-    ZARINPAL_API_KEY = os.getenv("ZARINPAL_API_KEY", "کد_زرین‌پال")
-    IDPAY_API_KEY = os.getenv("IDPAY_API_KEY", "کد_آیدی‌پی")
+    DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///db.sqlite3")
 
-    # اطلاعات مدیریت
+    ZARINPAL_API_KEY = os.getenv("ZARINPAL_API_KEY", "your_zarinpal_api_key_here")
+    IDPAY_API_KEY = os.getenv("IDPAY_API_KEY", "your_idpay_api_key_here")
+
     ADMIN_USER_IDS = os.getenv("ADMIN_USER_IDS", "")
     if ADMIN_USER_IDS:
-        ADMIN_USER_IDS = [int(user_id) for user_id in ADMIN_USER_IDS.split(",")]
+        ADMIN_USER_IDS = [int(uid.strip()) for uid in ADMIN_USER_IDS.split(",") if uid.strip().isdigit()]
     else:
         ADMIN_USER_IDS = []
 
-    # تنظیمات دیگر
     LOGGING_LEVEL = os.getenv("LOGGING_LEVEL", "INFO")
 
     return {

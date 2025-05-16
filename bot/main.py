@@ -1,28 +1,24 @@
+import asyncio
 from aiogram import Bot, Dispatcher
-from aiogram.types import Message
-from bot.config import BOT_TOKEN
+from bot.handlers import start  # فرض می‌کنم start_router تو این ماژول هست
+from bot.utils import db
+from bot.config import load_config
 
-# ایجاد ربات و دیسپچر
+config = load_config()
+BOT_TOKEN = config["token"]
+
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 
-# ثبت روت‌ها و هندلرها
-async def register_routers(dp: Dispatcher):
-    # اضافه کردن هندلرها به دیسپچر
-    pass
-
-# ثبت روت‌ها
-register_routers(dp)
-
-async def on_start(message: Message):
-    await message.answer("سلام! به ربات خوش آمدید.")
-
-dp.register_message_handler(on_start, commands=["start"])
+dp.include_router(start.start_router)
 
 async def main():
-    # شروع پردازش پیام‌ها
-    await dp.start_polling(bot)
+    db.init_db()  # اطمینان از اینکه دیتابیس ساخته و آماده است
+    print("🤖 ربات اجرا شد!")
+    try:
+        await dp.start_polling(bot)
+    finally:
+        await bot.session.close()
 
-if __name__ == '__main__':
-    import asyncio
+if __name__ == "__main__":
     asyncio.run(main())
