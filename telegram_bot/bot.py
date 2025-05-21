@@ -5,8 +5,12 @@ import io
 from config import TOKEN, ADMIN_IDS
 import database as db
 
+# ابتدا پایگاه داده را مقداردهی اولیه می‌کنیم
+db.init_db()
+
 bot = telebot.TeleBot(TOKEN)
 
+# وضعیت‌های کاربر
 user_states = {}
 
 # بررسی ادمین بودن
@@ -19,7 +23,7 @@ def user_menu(chat_id):
     markup.row('مشاهده سرویس‌های خرید شده', 'خرید سرویس')
     markup.row('تعرفه‌ها', 'کیف پول و موجودی', 'ارتقاء موجودی')
     markup.row('تیکت و پشتیبانی', 'راهنما', 'قوانین')
-    bot.send_message(chat_id, "به ربات خوش آمدید.لطفاً یکی از گزینه‌ها را انتخاب کنید.", reply_markup=markup)
+    bot.send_message(chat_id, "به ربات خوش آمدید. لطفاً یکی از گزینه‌ها را انتخاب کنید.", reply_markup=markup)
 
 def admin_menu(chat_id):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
@@ -38,19 +42,18 @@ def start_handler(message):
     else:
         user_menu(message.chat.id)
 
-# مدیریت دستورات عمومی
+# مدیریت پیام‌های عمومی و حالت‌های خاص
 @bot.message_handler(func=lambda m: True)
 def handle_message(message):
     chat_id = message.chat.id
     text = message.text.strip()
-    user_state = user_states.get(chat_id)
+    state = user_states.get(chat_id)
 
-    # حالت‌های خاص
-    if user_state:
-        action = user_state.get('action')
+    # بررسی حالت‌های خاص
+    if state:
+        action = state.get('action')
         if action == 'broadcast':
-            # ارسال پیام به همه
-            send_broadcast(message.text)
+            send_broadcast(text)
             bot.send_message(chat_id, "پیام به تمامی کاربران ارسال شد.")
             user_states.pop(chat_id)
             return
@@ -58,24 +61,31 @@ def handle_message(message):
             handle_excel_upload(message)
             return
         elif action == 'edit_rules':
-            db.set_setting('rules', message.text)
+            db.set_setting('rules', text)
             bot.send_message(chat_id, "قوانین بروزرسانی شد.")
             user_states.pop(chat_id)
             return
         elif action == 'create_ticket':
-            create_ticket(chat_id, message.text)
+            create_ticket(chat_id, text)
             user_states.pop(chat_id)
             return
         elif action == 'charge_wallet_method':
-            handle_wallet_charge_method(chat_id, message.text)
+            handle_wallet_charge_method(chat_id, text)
+            return
+        elif action == 'charge_amount':
+            handle_wallet_amount(chat_id, text)
+            return
+        elif action == 'charge_card':
+            handle_card_image(chat_id, message)
             return
 
-    # اگر حالت خاصی نیست
+    # در صورت نبود حالت خاص، دستورات عادی
     if is_admin(message.from_user.id):
         handle_admin_commands(message, text)
     else:
         handle_user_commands(message, text)
 
+# دستورات ادمین
 def handle_admin_commands(message, text):
     chat_id = message.chat.id
     if text == 'گزارش‌های فروش':
@@ -96,9 +106,12 @@ def handle_admin_commands(message, text):
     elif text == 'مدیریت قوانین':
         bot.send_message(chat_id, "لطفاً متن قوانین جدید را ارسال کنید.")
         user_states[chat_id] = {'action': 'edit_rules'}
+    elif text == 'راهنما':
+        show_help(chat_id)
     else:
         bot.send_message(chat_id, "دستور نامشخص است.")
 
+# دستورات کاربر
 def handle_user_commands(message, text):
     chat_id = message.chat.id
     if text == 'مشاهده سرویس‌های خرید شده':
@@ -112,7 +125,8 @@ def handle_user_commands(message, text):
     elif text == 'ارتقاء موجودی':
         show_wallet_charge_options(chat_id)
     elif text == 'تیکت و پشتیبانی':
-        create_support_ticket(chat_id)
+        bot.send_message(chat_id, "لطفاً پیام یا سوال خود را برای ثبت تیکت ارسال کنید.")
+        user_states[chat_id] = {'action': 'create_ticket'}
     elif text == 'راهنما':
         show_help(chat_id)
     elif text == 'قوانین':
@@ -122,12 +136,12 @@ def handle_user_commands(message, text):
     else:
         bot.send_message(chat_id, "لطفاً گزینه معتبر را انتخاب کنید.")
 
-# نمونه توابع
+# توابع کمکی و مدیریت‌ها
 def generate_sales_report():
     cursor = db.conn.cursor()
-    cursor.execute("SELECT COUNT(*) FROM orders")
+    cursor.execute("SELECT COUNT(*) FROM user_services")
     total_orders = cursor.fetchone()[0]
-    cursor.execute("SELECT SUM(amount) FROM orders")
+    cursor.execute("SELECT SUM(CASE WHEN service_name IS NOT NULL THEN 1 ELSE 0 END) FROM user_services")
     total_amount = cursor.fetchone()[0] or 0
     return f"گزارش کلی فروش:\nتعداد سفارش: {total_orders}\nمبلغ کل: {total_amount} تومان"
 
@@ -157,11 +171,20 @@ def show_user_services(chat_id):
     bot.send_message(chat_id, txt)
 
 def start_service_purchase(chat_id):
-    # نمونه، می‌تونی لیست سرویس‌ها رو بفرستی
-    bot.send_message(chat_id, "برای خرید سرویس، لیست سرویس‌های موجود در منو را انتخاب کنید.")
+    # نمونه، لیست سرویس‌ها رو می‌فرستی
+    cursor = db.conn.cursor()
+    cursor.execute("SELECT name, price FROM services")
+    services = cursor.fetchall()
+    if not services:
+        bot.send_message(chat_id, "سرویس‌ها در حال حاضر موجود نیست.")
+        return
+    txt = "لیست سرویس‌ها:\n"
+    for s in services:
+        txt += f"{s[0]} - {s[1]} تومان\n"
+    txt += "\nبرای خرید هر سرویس، نام آن را ارسال کنید."
+    bot.send_message(chat_id, txt)
 
 def show_tariffs(chat_id):
-    # نمونه، متن تعرفه‌ها
     bot.send_message(chat_id, "لیست تعرفه‌ها:\n1. سرویس A - 100 تومان\n2. سرویس B - 200 تومان")
 
 def show_wallet(chat_id):
@@ -182,7 +205,6 @@ def handle_wallet_charge_method(chat_id, method):
         bot.send_message(chat_id, "لطفاً مبلغ مورد نظر را وارد کنید و شماره کارت خود را به همراه تصویر کارت ارسال کنید.")
         user_states[chat_id] = {'action': 'charge_card'}
     elif method == 'شارژ با درگاه':
-        # فرض بر این است که درگاه فعال است
         generate_payment_link(chat_id)
         user_states.pop(chat_id)
     else:
@@ -190,19 +212,21 @@ def handle_wallet_charge_method(chat_id, method):
         show_wallet_charge_options(chat_id)
 
 def generate_payment_link(chat_id):
-    # نمونه لینک پرداخت
-    payment_url = "https://example.com/payment"
-    bot.send_message(chat_id, f"برای پرداخت لطفاً روی لینک زیر کلیک کنید:\n{payment_url}")
+    link = "https://example.com/payment"  # لینک پرداخت واقعی رو جایگزین کن
+    bot.send_message(chat_id, f"برای پرداخت، روی لینک زیر کلیک کنید:\n{link}")
 
-def create_ticket(chat_id, message_text):
+def create_ticket(chat_id, question):
     cursor = db.conn.cursor()
-    cursor.execute("INSERT INTO tickets (user_id, question, status) VALUES (?, ?, ?)", (chat_id, message_text, 'open'))
+    cursor.execute("INSERT INTO tickets (user_id, question, status) VALUES (?, ?, ?)", (chat_id, question, 'open'))
     db.conn.commit()
     bot.send_message(chat_id, "تیکت شما ثبت شد و تیم پشتیبانی در اسرع وقت تماس می‌گیرد.")
 
 def show_help(chat_id):
-    with open('templates/user_help.txt', 'r', encoding='utf-8') as f:
-        bot.send_message(chat_id, f.read())
+    try:
+        with open('templates/user_help.txt', 'r', encoding='utf-8') as f:
+            bot.send_message(chat_id, f.read())
+    except:
+        bot.send_message(chat_id, "راهنما در دسترس نیست.")
 
 def show_rules(chat_id):
     rules = db.get_setting('rules') or "قوانین در حال حاضر موجود نیست."
@@ -212,50 +236,28 @@ def start_wallet_charge(chat_id):
     bot.send_message(chat_id, "لطفاً مبلغ مورد نظر برای شارژ را وارد کنید.")
     user_states[chat_id] = {'action': 'charge_amount'}
 
-# پرداخت‌های کاربر
-@bot.message_handler(func=lambda m: True)
-def handle_special_states(message):
-    chat_id = message.chat.id
-    state = user_states.get(chat_id)
-    if not state:
-        return
+# مدیریت وضعیت‌های خاص
+def handle_wallet_amount(chat_id, text):
+    try:
+        amount = int(text)
+        if amount <= 0:
+            raise ValueError
+        update_user_wallet(chat_id, amount)
+        bot.send_message(chat_id, f"مبلغ {amount} تومان به حساب شما اضافه شد.")
+        user_states.pop(chat_id)
+    except:
+        bot.send_message(chat_id, "لطفاً مبلغ معتبر وارد کنید.")
 
-    action = state.get('action')
-    if action == 'charge_amount':
-        try:
-            amount = int(message.text.strip())
-            if amount <= 0:
-                raise ValueError
-            # فرض بر این است که پرداخت انجام می‌شود و پس از تایید، موجودی کاربر افزایش می‌یابد
-            update_user_wallet(chat_id, amount)
-            bot.send_message(chat_id, f"مبلغ {amount} تومان به حساب شما اضافه شد.")
-            user_states.pop(chat_id)
-        except:
-            bot.send_message(chat_id, "لطفاً مبلغ معتبر وارد کنید.")
-    elif action == 'charge_card':
-        # مرحله بعد، ارسال تصویر و اطلاعات کارت است
-        bot.send_message(chat_id, "لطفاً تصویر کارت خود را ارسال کنید.")
-        user_states[chat_id]['step'] = 'send_card_image'
-    elif user_states[chat_id].get('step') == 'send_card_image':
-        # انتظار ارسال تصویر کارت
-        if message.content_type == 'photo':
-            # در اینجا می‌تونی اطلاعات رو ثبت و تایید کنی
-            amount = 0  # مبلغ رو از قبل وارد کردی
-            # فرض بر این است که مبلغ وارد شده رو نگه داشتی
-            # پس اینجا باید مبلغ رو از حالت قبلی برگردونی
-            # اما در این نمونه، فقط پیام تایید رو می‌فرستی
-            bot.send_message(chat_id, "تصویر کارت دریافت شد. پس از تایید، موجودی حساب شما شارژ می‌شود.")
-            user_states.pop(chat_id)
-        else:
-            bot.send_message(chat_id, "لطفاً فقط تصویر را ارسال کنید.")
-    elif action == 'charge_wallet_method':
-        handle_wallet_charge_method(chat_id, message.text)
+def handle_card_image(chat_id, message):
+    if message.content_type == 'photo':
+        # در اینجا می‌تونی اطلاعات رو ثبت و تایید کنی
+        # فرض بر این است که مبلغ رو قبلاً وارد کردی
+        bot.send_message(chat_id, "تصویر کارت دریافت شد. پس از تایید، موجودی حساب شما شارژ می‌شود.")
+        user_states.pop(chat_id)
+    else:
+        bot.send_message(chat_id, "لطفاً فقط تصویر را ارسال کنید.")
 
-def update_user_wallet(chat_id, amount):
-    cursor = db.conn.cursor()
-    cursor.execute("UPDATE users SET wallet = wallet + ? WHERE user_id=?", (amount, chat_id))
-    db.conn.commit()
-
+# مدیریت درخواست‌های افزایش موجودی
 def handle_topup_requests(chat_id):
     cursor = db.conn.cursor()
     cursor.execute("SELECT id, user_id, amount, status FROM topup_requests WHERE status='pending'")
@@ -272,6 +274,7 @@ def handle_topup_requests(chat_id):
         )
         bot.send_message(user_id, f"درخواست افزایش موجودی به مبلغ {amount} تومان تایید یا رد شود.", reply_markup=markup)
 
+# callback ها برای تایید و رد درخواست‌ها
 @bot.callback_query_handler(func=lambda call: call.data.startswith('topup_'))
 def handle_topup_callback(call):
     data = call.data.split('_')
@@ -296,16 +299,24 @@ def handle_topup_callback(call):
         bot.send_message(user_id, "درخواست افزایش موجودی شما رد شد.")
         bot.answer_callback_query(call.id, "درخواست رد شد.")
 
+# تابع برای بروزرسانی موجودی کیف پول کاربر
+def update_user_wallet(user_id, amount):
+    cursor = db.conn.cursor()
+    cursor.execute("UPDATE users SET wallet = wallet + ? WHERE user_id=?", (amount, user_id))
+    db.conn.commit()
+
+# ارسال پیام به همه کاربران
 def send_broadcast(message_text):
     cursor = db.conn.cursor()
     cursor.execute("SELECT user_id FROM users")
     users = cursor.fetchall()
-    for user_id in users:
+    for user in users:
         try:
-            bot.send_message(user_id[0], message_text)
+            bot.send_message(user[0], message_text)
         except:
             pass
 
+# تغییر وضعیت خرید سرویس
 def toggle_service_status(chat_id):
     current = db.get_setting('service_active') or 'true'
     new_status = 'false' if current == 'true' else 'true'
@@ -322,35 +333,14 @@ def handle_excel_upload(message):
             apple_id = row.get('AppleID')
             owner_id = row.get('OwnerID')
             if apple_id and owner_id:
-                db.cursor.execute("INSERT INTO apple_ids (apple_id, owner_id) VALUES (?, ?)", (apple_id, owner_id))
+                cursor = db.conn.cursor()
+                cursor.execute("INSERT INTO apple_ids (apple_id, owner_id) VALUES (?, ?)", (apple_id, owner_id))
         db.conn.commit()
         bot.send_message(message.chat.id, "اپل آی‌دی‌ها ثبت شد.")
         user_states.pop(message.chat.id)
     except Exception as e:
         bot.send_message(message.chat.id, "خطا در پردازش فایل. لطفاً مجدد سعی کنید.")
         print(e)
-
-# سایر توابع کمکی
-def create_ticket(chat_id, question):
-    cursor = db.conn.cursor()
-    cursor.execute("INSERT INTO tickets (user_id, question, status) VALUES (?, ?, ?)", (chat_id, question, 'open'))
-    db.conn.commit()
-    bot.send_message(chat_id, "تیکت شما ثبت شد و تیم پشتیبانی در اسرع وقت تماس می‌گیرد.")
-
-def show_help(chat_id):
-    try:
-        with open('templates/user_help.txt', 'r', encoding='utf-8') as f:
-            bot.send_message(chat_id, f.read())
-    except:
-        bot.send_message(chat_id, "راهنما در دسترس نیست.")
-
-def show_rules(chat_id):
-    rules = db.get_setting('rules') or "قوانین در حال حاضر موجود نیست."
-    bot.send_message(chat_id, rules)
-
-def generate_payment_link(chat_id):
-    link = "https://example.com/payment"  # لینک پرداخت واقعی رو جایگزین کن
-    bot.send_message(chat_id, f"برای پرداخت، روی لینک زیر کلیک کنید:\n{link}")
 
 # اجرای ربات
 bot.polling()
