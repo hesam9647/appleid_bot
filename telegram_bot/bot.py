@@ -98,6 +98,7 @@ def start_handler(message):
         user_menu(chat_id)
         db.add_user_if_not_exists(user_id, message.from_user.username)
 
+
 # مدیریت پیام‌های عمومی و حالت‌های خاص
 @bot.message_handler(func=lambda m: True)
 def handle_message(message):
@@ -394,17 +395,60 @@ def handle_excel_upload(message):
         file_info = bot.get_file(message.document.file_id)
         downloaded = bot.download_file(file_info.file_path)
         df = pd.read_excel(io.BytesIO(downloaded))
-        count = 0
+        
+        # فرض بر این است که قالب فایل شامل ستون‌های:
+        # 'AppleID' و 'OwnerID' است.
+        apple_ids_in_file = []
+        owner_id_for_all = None
+        # جمع‌آوری اپل آیدی‌ها و مالک
         for _, row in df.iterrows():
             apple_id = str(row.get('AppleID')).strip()
             owner_id = str(row.get('OwnerID')).strip()
-            if apple_id and owner_id:
-                cursor = db.conn.cursor()
-                cursor.execute("INSERT INTO apple_ids (apple_id, owner_id) VALUES (?, ?)", (apple_id, owner_id))
-                count += 1
-        db.conn.commit()
-        bot.send_message(message.chat.id, f"{count} اپل آی‌دی ثبت شد.")
+            if apple_id:
+                apple_ids_in_file.append(apple_id)
+            if owner_id:
+                owner_id_for_all = owner_id  # فرض بر این است که یک مالک برای همه است
+
+        if not apple_ids_in_file:
+            bot.send_message(message.chat.id, "هیچ اپل آیدی معتبر پیدا نشد.")
+            return
+
+        # چک کردن تکراری بودن
+        cursor = db.conn.cursor()
+        # پیدا کردن اپل آیدی‌های تکراری یا فروخته شده در دیتابیس
+        placeholders = ','.join(['?']*len(apple_ids_in_file))
+        cursor.execute(f"SELECT apple_id FROM apple_ids WHERE apple_id IN ({placeholders}) AND sold=1", apple_ids_in_file)
+        sold_apple_ids = [row[0] for row in cursor.fetchall()]
+
+        # حذف اپل آیدی‌های تکراری (فروش‌نشدن)
+        available_apple_ids = [aid for aid in apple_ids_in_file if aid not in sold_apple_ids]
+
+        # فروش به افراد
+        total_sold = 0
+        for aid in available_apple_ids:
+            try:
+                # ثبت در دیتابیس، علامت‌گذاری به عنوان sold
+                db.mark_apple_ids_as_sold([aid], owner_id_for_all)
+                total_sold += 1
+            except Exception as e:
+                print(f"خطا در ثبت اپل آیدی {aid}: {e}")
+
+        # اگر تعداد اپل آیدی‌های فروخته شده برابر با تعداد کل باشد، یعنی تمام موجودی تمام شد
+        if len(available_apple_ids) == 0:
+            # تمام موجودی اتمام یافته است
+            # اطلاع‌رسانی به ادمین‌ها
+            admin_ids = ADMIN_IDS  # فرض بر اینکه این لیست دارید
+            for admin_id in admin_ids:
+                bot.send_message(admin_id, "تمامی موجودی اپل آیدی‌ها به اتمام رسید.")
+        else:
+            # اطلاع‌رسانی در مورد تعداد فروخته شده
+            for aid in available_apple_ids:
+                # اگه می‌خوای هر اپل آیدی رو مجزا اعلام کنی، می‌تونی اینجا بنویسی
+                pass
+
+        bot.send_message(message.chat.id, f"{total_sold} اپل آیدی فروخته شد و ثبت شد.")
         user_states.pop(message.chat.id)
+
     except Exception as e:
         bot.send_message(message.chat.id, "خطا در پردازش فایل. لطفاً مجدد سعی کنید.")
         print(e)
