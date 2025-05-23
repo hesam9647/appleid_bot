@@ -205,15 +205,22 @@ def generate_sales_report():
 
 def manage_users(chat_id):
     cursor = db.conn.cursor()
-    cursor.execute("SELECT user_id, username, wallet FROM users")
+    cursor.execute("SELECT user_id, username, wallet, last_active FROM users")
     users = cursor.fetchall()
     if not users:
-        bot.send_message(chat_id, "در حال حاضر کاربری ثبت نشده است.")
+        bot.send_message(chat_id, "🚫 در حال حاضر کاربری ثبت نشده است.")
         return
-    txt = "لیست کاربران:\n"
+    txt = "📝 لیست کاربران:\n\n"
     for u in users:
-        user_id, username, wallet = u
-        txt += f"آیدی: {user_id} | @{username} | موجودی: {wallet} تومان\n"
+        user_id, username, wallet, last_active = u
+        last_active_str = last_active if last_active else "ندارد"
+        txt += (
+            f"👤 شناسه: {user_id}\n"
+            f"🎯 یوزرنیم: @{username if username else 'ندارد'}\n"
+            f"💰 موجودی کیف پول: {wallet} تومان\n"
+            f"🗓 آخرین فعالیت: {last_active_str}\n"
+            "---------------------------\n"
+        )
     bot.send_message(chat_id, txt)
 
 def show_user_services(chat_id):

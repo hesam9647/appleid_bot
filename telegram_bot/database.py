@@ -39,10 +39,22 @@ def init_db():
             )
         ''')
 
+        # جدول خرید سرویس توسط کاربران
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS user_services (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                service_id INTEGER,
+                purchase_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                status TEXT DEFAULT 'active'
+            )
+        ''')
+
         conn.commit()
         print("دیتابیس با موفقیت ایجاد شد.")
     except sqlite3.Error as e:
         print(f"خطا در ایجاد دیتابیس: {e}")
+
 
 # تابع افزودن کاربر اگر وجود نداشت
 def add_user_if_not_exists(user_id, username):
