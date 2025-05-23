@@ -15,7 +15,8 @@ def init_db():
                 wallet REAL DEFAULT 0,
                 is_blocked INTEGER DEFAULT 0,
                 phone_number TEXT,
-                apple_id TEXT
+                apple_id TEXT,
+                last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         ''')
 
@@ -54,6 +55,7 @@ def init_db():
         print("دیتابیس با موفقیت ایجاد شد.")
     except sqlite3.Error as e:
         print(f"خطا در ایجاد دیتابیس: {e}")
+
 
 
 # تابع افزودن کاربر اگر وجود نداشت
