@@ -1,8 +1,10 @@
 import sqlite3
 
+# اتصال به دیتابیس SQLite
 conn = sqlite3.connect('bot.db', check_same_thread=False)
 cursor = conn.cursor()
 
+# تابع ایجاد جداول دیتابیس
 def init_db():
     try:
         # جدول کاربران
@@ -26,7 +28,7 @@ def init_db():
             )
         ''')
 
-        # جدول تیکت‌ها (اضافه شده)
+        # جدول تیکت‌ها
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS tickets (
                 ticket_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -41,3 +43,14 @@ def init_db():
         print("دیتابیس با موفقیت ایجاد شد.")
     except sqlite3.Error as e:
         print(f"خطا در ایجاد دیتابیس: {e}")
+
+# تابع افزودن کاربر اگر وجود نداشت
+def add_user_if_not_exists(user_id, username):
+    try:
+        cursor.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
+        result = cursor.fetchone()
+        if result is None:
+            cursor.execute("INSERT INTO users (user_id, username) VALUES (?, ?)", (user_id, username))
+            conn.commit()
+    except sqlite3.Error as e:
+        print(f"خطا در افزودن کاربر: {e}")
