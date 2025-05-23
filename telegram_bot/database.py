@@ -1,11 +1,11 @@
 import sqlite3
 
-# اتصال به دیتابیس (گلوبال نگه دار)
 conn = sqlite3.connect('bot.db', check_same_thread=False)
 cursor = conn.cursor()
 
 def init_db():
     try:
+        # جدول کاربران
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS users (
                 user_id INTEGER PRIMARY KEY,
@@ -16,6 +16,8 @@ def init_db():
                 apple_id TEXT
             )
         ''')
+
+        # جدول سرویس‌ها
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS services (
                 service_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -23,23 +25,19 @@ def init_db():
                 price REAL
             )
         ''')
+
+        # جدول تیکت‌ها (اضافه شده)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS tickets (
+                ticket_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                question TEXT,
+                status TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
         conn.commit()
         print("دیتابیس با موفقیت ایجاد شد.")
     except sqlite3.Error as e:
         print(f"خطا در ایجاد دیتابیس: {e}")
-
-def add_user_if_not_exists(user_id, username=None, phone_number=None, apple_id=None):
-    try:
-        cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
-        user = cursor.fetchone()
-        if user is None:
-            cursor.execute(
-                "INSERT INTO users (user_id, username, phone_number, apple_id) VALUES (?, ?, ?, ?)",
-                (user_id, username, phone_number, apple_id)
-            )
-            conn.commit()
-            return True
-        return False
-    except sqlite3.Error as e:
-        print(f"خطا در اضافه کردن کاربر: {e}")
-        return False
