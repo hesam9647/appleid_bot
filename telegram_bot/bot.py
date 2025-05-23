@@ -5,7 +5,7 @@ import io
 from config import TOKEN, ADMIN_IDS
 import database as db
 
-# ابتدا پایگاه داده را مقداردهی اولیه می‌کنیم
+# مقداردهی اولیه پایگاه داده
 db.init_db()
 
 bot = telebot.TeleBot(TOKEN)
@@ -13,24 +13,77 @@ bot = telebot.TeleBot(TOKEN)
 # وضعیت‌های کاربر
 user_states = {}
 
+# استیکرهای منوهای کاربری و ادمین
+user_emojis = {
+    'مشاهده سرویس‌های خرید شده': '📋',
+    'خرید سرویس': '🛍️',
+    'تعرفه‌ها': '💰',
+    'کیف پول و موجودی': '💼',
+    'ارتقاء موجودی': '⬆️',
+    'تیکت و پشتیبانی': '📩',
+    'راهنما': '❓',
+    'قوانین': '📜',
+    'اپلود فایل اپل آیدی': '📥',
+    'ارسال پیام به کاربران': '✉️',
+    'مدیریت کاربران': '👥',
+    'مدیریت درخواست‌های افزایش موجودی': '💸',
+    'اپلیکیشن آی‌دی': '📱',
+    'وضعیت خرید سرویس': '⚙️',
+    'مدیریت قوانین': '📝',
+}
+
+admin_emojis = {
+    'گزارش‌های فروش': '📊',
+    'ارسال پیام به کاربران': '✉️',
+    'مدیریت کاربران': '👥',
+    'مدیریت درخواست‌های افزایش موجودی': '💸',
+    'اپلود فایل اپل آیدی': '📥',
+    'اپلیکیشن آی‌دی': '📱',
+    'وضعیت خرید سرویس': '⚙️',
+    'مدیریت قوانین': '📝',
+}
+
 # بررسی ادمین بودن
 def is_admin(user_id):
     return user_id in ADMIN_IDS
 
-# منوهای کاربر و ادمین
+# منوهای کاربری و ادمین با دکمه‌های زیبا و استیکر
 def user_menu(chat_id):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row('مشاهده سرویس‌های خرید شده', 'خرید سرویس')
-    markup.row('تعرفه‌ها', 'کیف پول و موجودی', 'ارتقاء موجودی')
-    markup.row('تیکت و پشتیبانی', 'راهنما', 'قوانین')
+    markup.row(
+        types.KeyboardButton(f"{user_emojis['مشاهده سرویس‌های خرید شده']} مشاهده سرویس‌های خرید شده"),
+        types.KeyboardButton(f"{user_emojis['خرید سرویس']} خرید سرویس")
+    )
+    markup.row(
+        types.KeyboardButton(f"{user_emojis['تعرفه‌ها']} تعرفه‌ها"),
+        types.KeyboardButton(f"{user_emojis['کیف پول و موجودی']} کیف پول و موجودی"),
+        types.KeyboardButton(f"{user_emojis['ارتقاء موجودی']} ارتقاء موجودی")
+    )
+    markup.row(
+        types.KeyboardButton(f"{user_emojis['تیکت و پشتیبانی']} تیکت و پشتیبانی"),
+        types.KeyboardButton(f"{user_emojis['راهنما']} راهنما"),
+        types.KeyboardButton(f"{user_emojis['قوانین']} قوانین")
+    )
     bot.send_message(chat_id, "به ربات خوش آمدید. لطفاً یکی از گزینه‌ها را انتخاب کنید.", reply_markup=markup)
 
 def admin_menu(chat_id):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row('گزارش‌های فروش', 'ارسال پیام به کاربران')
-    markup.row('مدیریت کاربران', 'مدیریت درخواست‌های افزایش موجودی')
-    markup.row('اپلیکیشن آی‌دی', 'وضعیت خرید سرویس')
-    markup.row('مدیریت قوانین', 'راهنما')
+    markup.row(
+        types.KeyboardButton(f"{admin_emojis['گزارش‌های فروش']} گزارش‌های فروش"),
+        types.KeyboardButton(f"{admin_emojis['ارسال پیام به کاربران']} ارسال پیام به کاربران")
+    )
+    markup.row(
+        types.KeyboardButton(f"{admin_emojis['مدیریت کاربران']} مدیریت کاربران"),
+        types.KeyboardButton(f"{admin_emojis['مدیریت درخواست‌های افزایش موجودی']} درخواست‌های افزایش موجودی")
+    )
+    markup.row(
+        types.KeyboardButton(f"{admin_emojis['اپلود فایل اپل آیدی']} آپلود فایل اپل آیدی"),
+        types.KeyboardButton(f"{admin_emojis['اپلیکیشن آی‌دی']} اپلیکیشن آی‌دی")
+    )
+    markup.row(
+        types.KeyboardButton(f"{admin_emojis['وضعیت خرید سرویس']} وضعیت خرید سرویس"),
+        types.KeyboardButton(f"{admin_emojis['مدیریت قوانین']} مدیریت قوانین")
+    )
     bot.send_message(chat_id, "پنل ادمین", reply_markup=markup)
 
 # شروع
@@ -41,15 +94,17 @@ def start_handler(message):
         admin_menu(message.chat.id)
     else:
         user_menu(message.chat.id)
+        # اطمینان که کاربر در دیتابیس هست
+        db.add_user_if_not_exists(user_id, message.from_user.username)
 
 # مدیریت پیام‌های عمومی و حالت‌های خاص
 @bot.message_handler(func=lambda m: True)
 def handle_message(message):
     chat_id = message.chat.id
-    text = message.text.strip()
+    text = message.text.strip() if message.text else ''
     state = user_states.get(chat_id)
 
-    # بررسی حالت‌های خاص
+    # حالت‌های خاص
     if state:
         action = state.get('action')
         if action == 'broadcast':
@@ -79,7 +134,7 @@ def handle_message(message):
             handle_card_image(chat_id, message)
             return
 
-    # در صورت نبود حالت خاص، دستورات عادی
+    # دستورات عادی بر اساس نقش کاربر
     if is_admin(message.from_user.id):
         handle_admin_commands(message, text)
     else:
@@ -88,25 +143,28 @@ def handle_message(message):
 # دستورات ادمین
 def handle_admin_commands(message, text):
     chat_id = message.chat.id
-    if text == 'گزارش‌های فروش':
+    if text.startswith('📊'):
         report = generate_sales_report()
         bot.send_message(chat_id, report)
-    elif text == 'ارسال پیام به کاربران':
+    elif text.startswith('✉️'):
         user_states[chat_id] = {'action': 'broadcast'}
         bot.send_message(chat_id, "پیام خود را برای ارسال به تمامی کاربران وارد کنید.")
-    elif text == 'مدیریت کاربران':
+    elif text.startswith('👥'):
         manage_users(chat_id)
-    elif text == 'مدیریت درخواست‌های افزایش موجودی':
+    elif text.startswith('💸'):
         handle_topup_requests(chat_id)
-    elif text == 'اپلیکیشن آی‌دی':
-        bot.send_message(chat_id, "لطفاً فایل اکسل حاوی اپل آیدی‌ها را ارسال کنید.")
+    elif text.startswith('📥'):
+        bot.send_message(chat_id, "لطفاً فایل اکسل حاوی اپل آی‌دی‌ها را ارسال کنید.")
         user_states[chat_id] = {'action': 'upload_excel'}
-    elif text == 'وضعیت خرید سرویس':
+    elif text.startswith('⚙️'):
         toggle_service_status(chat_id)
-    elif text == 'مدیریت قوانین':
+    elif text.startswith('📝'):
         bot.send_message(chat_id, "لطفاً متن قوانین جدید را ارسال کنید.")
         user_states[chat_id] = {'action': 'edit_rules'}
-    elif text == 'راهنما':
+    elif text.startswith('📱'):
+        bot.send_message(chat_id, "لطفاً فایل اکسل حاوی اپل آیدی‌ها را ارسال کنید.")
+        user_states[chat_id] = {'action': 'upload_apple_ids'}
+    elif text.startswith('📝'):
         show_help(chat_id)
     else:
         bot.send_message(chat_id, "دستور نامشخص است.")
@@ -114,24 +172,24 @@ def handle_admin_commands(message, text):
 # دستورات کاربر
 def handle_user_commands(message, text):
     chat_id = message.chat.id
-    if text == 'مشاهده سرویس‌های خرید شده':
+    if text.startswith('📋'):
         show_user_services(chat_id)
-    elif text == 'خرید سرویس':
+    elif text.startswith('🛍️'):
         start_service_purchase(chat_id)
-    elif text == 'تعرفه‌ها':
+    elif text.startswith('💰'):
         show_tariffs(chat_id)
-    elif text == 'کیف پول و موجودی':
+    elif text.startswith('💼'):
         show_wallet(chat_id)
-    elif text == 'ارتقاء موجودی':
+    elif text.startswith('⬆️'):
         show_wallet_charge_options(chat_id)
-    elif text == 'تیکت و پشتیبانی':
+    elif text.startswith('📩'):
         bot.send_message(chat_id, "لطفاً پیام یا سوال خود را برای ثبت تیکت ارسال کنید.")
         user_states[chat_id] = {'action': 'create_ticket'}
-    elif text == 'راهنما':
+    elif text.startswith('❓'):
         show_help(chat_id)
-    elif text == 'قوانین':
+    elif text.startswith('📜'):
         show_rules(chat_id)
-    elif text == 'شارژ کیف پول':
+    elif text.startswith('⬆️'):
         start_wallet_charge(chat_id)
     else:
         bot.send_message(chat_id, "لطفاً گزینه معتبر را انتخاب کنید.")
@@ -141,7 +199,7 @@ def generate_sales_report():
     cursor = db.conn.cursor()
     cursor.execute("SELECT COUNT(*) FROM user_services")
     total_orders = cursor.fetchone()[0]
-    cursor.execute("SELECT SUM(CASE WHEN service_name IS NOT NULL THEN 1 ELSE 0 END) FROM user_services")
+    cursor.execute("SELECT SUM(amount) FROM user_services")
     total_amount = cursor.fetchone()[0] or 0
     return f"گزارش کلی فروش:\nتعداد سفارش: {total_orders}\nمبلغ کل: {total_amount} تومان"
 
@@ -155,7 +213,7 @@ def manage_users(chat_id):
     txt = "لیست کاربران:\n"
     for u in users:
         user_id, username, wallet = u
-        txt += f"ID: {user_id} | Username: @{username} | موجودی: {wallet} تومان\n"
+        txt += f"آیدی: {user_id} | @{username} | موجودی: {wallet} تومان\n"
     bot.send_message(chat_id, txt)
 
 def show_user_services(chat_id):
@@ -171,7 +229,6 @@ def show_user_services(chat_id):
     bot.send_message(chat_id, txt)
 
 def start_service_purchase(chat_id):
-    # نمونه، لیست سرویس‌ها رو می‌فرستی
     cursor = db.conn.cursor()
     cursor.execute("SELECT name, price FROM services")
     services = cursor.fetchall()
@@ -196,15 +253,15 @@ def show_wallet(chat_id):
 
 def show_wallet_charge_options(chat_id):
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-    markup.row('شارژ با کارت به کارت', 'شارژ با درگاه')
+    markup.row('🔄 شارژ با کارت به کارت', '🛠️ شارژ با درگاه')
     bot.send_message(chat_id, "روش شارژ را انتخاب کنید:", reply_markup=markup)
     user_states[chat_id] = {'action': 'charge_wallet_method'}
 
 def handle_wallet_charge_method(chat_id, method):
-    if method == 'شارژ با کارت به کارت':
+    if method.startswith('🔄'):
         bot.send_message(chat_id, "لطفاً مبلغ مورد نظر را وارد کنید و شماره کارت خود را به همراه تصویر کارت ارسال کنید.")
         user_states[chat_id] = {'action': 'charge_card'}
-    elif method == 'شارژ با درگاه':
+    elif method.startswith('🛠️'):
         generate_payment_link(chat_id)
         user_states.pop(chat_id)
     else:
@@ -212,7 +269,7 @@ def handle_wallet_charge_method(chat_id, method):
         show_wallet_charge_options(chat_id)
 
 def generate_payment_link(chat_id):
-    link = "https://example.com/payment"  # لینک پرداخت واقعی رو جایگزین کن
+    link = "https://example.com/payment"  # لینک پرداخت واقعی
     bot.send_message(chat_id, f"برای پرداخت، روی لینک زیر کلیک کنید:\n{link}")
 
 def create_ticket(chat_id, question):
@@ -250,8 +307,6 @@ def handle_wallet_amount(chat_id, text):
 
 def handle_card_image(chat_id, message):
     if message.content_type == 'photo':
-        # در اینجا می‌تونی اطلاعات رو ثبت و تایید کنی
-        # فرض بر این است که مبلغ رو قبلاً وارد کردی
         bot.send_message(chat_id, "تصویر کارت دریافت شد. پس از تایید، موجودی حساب شما شارژ می‌شود.")
         user_states.pop(chat_id)
     else:
@@ -269,12 +324,11 @@ def handle_topup_requests(chat_id):
         req_id, user_id, amount, status = req
         markup = types.InlineKeyboardMarkup()
         markup.row(
-            types.InlineKeyboardButton("تایید", callback_data=f'topup_approve_{req_id}'),
-            types.InlineKeyboardButton("رد", callback_data=f'topup_reject_{req_id}')
+            types.InlineKeyboardButton("✅ تایید", callback_data=f'topup_approve_{req_id}'),
+            types.InlineKeyboardButton("❌ رد", callback_data=f'topup_reject_{req_id}')
         )
         bot.send_message(user_id, f"درخواست افزایش موجودی به مبلغ {amount} تومان تایید یا رد شود.", reply_markup=markup)
 
-# callback ها برای تایید و رد درخواست‌ها
 @bot.callback_query_handler(func=lambda call: call.data.startswith('topup_'))
 def handle_topup_callback(call):
     data = call.data.split('_')
@@ -299,13 +353,13 @@ def handle_topup_callback(call):
         bot.send_message(user_id, "درخواست افزایش موجودی شما رد شد.")
         bot.answer_callback_query(call.id, "درخواست رد شد.")
 
-# تابع برای بروزرسانی موجودی کیف پول کاربر
+# بروزرسانی موجودی کاربر
 def update_user_wallet(user_id, amount):
     cursor = db.conn.cursor()
     cursor.execute("UPDATE users SET wallet = wallet + ? WHERE user_id=?", (amount, user_id))
     db.conn.commit()
 
-# ارسال پیام به همه کاربران
+# ارسال پیام به تمام کاربران
 def send_broadcast(message_text):
     cursor = db.conn.cursor()
     cursor.execute("SELECT user_id FROM users")
@@ -314,7 +368,7 @@ def send_broadcast(message_text):
         try:
             bot.send_message(user[0], message_text)
         except:
-            pass
+            continue
 
 # تغییر وضعیت خرید سرویس
 def toggle_service_status(chat_id):
@@ -336,11 +390,101 @@ def handle_excel_upload(message):
                 cursor = db.conn.cursor()
                 cursor.execute("INSERT INTO apple_ids (apple_id, owner_id) VALUES (?, ?)", (apple_id, owner_id))
         db.conn.commit()
-        bot.send_message(message.chat.id, "اپل آی‌دی‌ها ثبت شد.")
+        bot.send_message(message.chat.id, "اپل آیدی‌ها ثبت شد.")
         user_states.pop(message.chat.id)
     except Exception as e:
         bot.send_message(message.chat.id, "خطا در پردازش فایل. لطفاً مجدد سعی کنید.")
         print(e)
+
+# --- قسمت جدید: ارسال پیام به تمام کاربران ---  
+@bot.message_handler(func=lambda m: m.text and m.text.startswith('ارسال پیام به همه'))
+def handle_broadcast_command(message):
+    if not is_admin(message.from_user.id):
+        return
+    user_id = message.chat.id
+    user_states[user_id] = {'action': 'broadcast'}
+    bot.send_message(user_id, "لطفاً پیام موردنظر خود را برای ارسال به تمام کاربران وارد کنید.")
+
+# --- قسمت جدید: آپلود فایل اپل آیدی و ساخت فرم ---
+
+# دکمه جدید در منو ادمین برای آپلود فایل اپل آیدی
+# در منوی ادمین، در handle_admin_commands، اضافه کن:
+# if text.startswith('📥'):
+#     # همانطور که در بالا است
+#
+# در صورت کلی، در قسمت handle_admin_commands:
+def handle_admin_commands(message, text):
+    chat_id = message.chat.id
+    if text.startswith('📊'):
+        report = generate_sales_report()
+        bot.send_message(chat_id, report)
+    elif text.startswith('✉️'):
+        user_states[chat_id] = {'action': 'broadcast'}
+        bot.send_message(chat_id, "پیام خود را برای ارسال به تمامی کاربران وارد کنید.")
+    elif text.startswith('👥'):
+        manage_users(chat_id)
+    elif text.startswith('💸'):
+        handle_topup_requests(chat_id)
+    elif text.startswith('📥'):
+        bot.send_message(chat_id, "لطفاً فایل اکسل اپل آیدی را ارسال کنید.")
+        user_states[chat_id] = {'action': 'upload_apple_ids'}
+    elif text.startswith('📱'):
+        # لینک و آموزش قالب فایل اکسل
+        sample_excel_instructions(chat_id)
+    elif text.startswith('📝'):
+        show_help(chat_id)
+    elif text.startswith('⚙️'):
+        toggle_service_status(chat_id)
+    elif text.startswith('📝'):
+        show_help(chat_id)
+    elif text.startswith('مدیریت قوانین'):
+        bot.send_message(chat_id, "لطفاً متن قوانین جدید را ارسال کنید.")
+        user_states[chat_id] = {'action': 'edit_rules'}
+    else:
+        bot.send_message(chat_id, "دستور نامشخص است.")
+
+# تابع نمایش نمونه قالب اکسل
+def sample_excel_instructions(chat_id):
+    msg = (
+        "برای ساخت فایل اکسل، قالب زیر را رعایت کنید:\n\n"
+        "ستون‌ها:\n"
+        "- AppleID\n"
+        "- OwnerID\n\n"
+        "مثال:\n"
+        "AppleID,OwnerID\n"
+        "123456789,User1\n"
+        "987654321,User2\n\n"
+"داخل این فایل، اطلاعات هر اپل آیدی و مالک آن را وارد کنید و سپس ارسال کنید."
+    )
+    bot.send_message(chat_id, msg)
+
+# --- برای ثبت اپل آیدی‌های جدید پس از آپلود ---
+def handle_excel_upload(message):
+    if message.content_type != 'document':
+        bot.send_message(message.chat.id, "لطفاً فایل اکسل را ارسال کنید.")
+        return
+    try:
+        file_info = bot.get_file(message.document.file_id)
+        downloaded = bot.download_file(file_info.file_path)
+        df = pd.read_excel(io.BytesIO(downloaded))
+        count = 0
+        for _, row in df.iterrows():
+            apple_id = str(row.get('AppleID')).strip()
+            owner_id = str(row.get('OwnerID')).strip()
+            if apple_id and owner_id:
+                cursor = db.conn.cursor()
+                cursor.execute("INSERT INTO apple_ids (apple_id, owner_id) VALUES (?, ?)", (apple_id, owner_id))
+                count += 1
+        db.conn.commit()
+        bot.send_message(message.chat.id, f"{count} اپل آی‌دی ثبت شد.")
+        user_states.pop(message.chat.id)
+    except Exception as e:
+        bot.send_message(message.chat.id, "خطا در پردازش فایل. لطفاً مجدد سعی کنید.")
+        print(e)
+
+# ===========================  
+# در صورت نیاز، بخش‌های دیگر رو هم می‌تونی اصلاح و کامل کنی
+# ===========================
 
 # اجرای ربات
 bot.polling()
