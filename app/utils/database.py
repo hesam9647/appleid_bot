@@ -1,6 +1,8 @@
+# database.py
 import sqlite3
 from config import DB_PATH
 
+### --- Database Initialization --- ###
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
@@ -52,6 +54,8 @@ def init_db():
     conn.commit()
     conn.close()
 
+
+### --- Service Status Functions --- ###
 def get_service_status():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
@@ -70,7 +74,8 @@ def toggle_service_status():
     conn.commit()
     conn.close()
 
-# توابع مربوط به کاربران
+
+### --- User Functions --- ###
 def add_user(user_id, username):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
@@ -108,18 +113,14 @@ def get_all_users():
     conn.close()
     return [u[0] for u in users]
 
-# اپل آیدی‌ها
+
+### --- Apple ID Functions --- ###
 def add_apple_id(apple_id):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute('INSERT INTO apple_ids (apple_id) VALUES (?)', (apple_id,))
     conn.commit()
     conn.close()
-# database.py
-def add_apple_id(username, apple_id):
-    """این تابع کار اضافه کردن اطلاعات apple_id را انجام می دهد."""
-    print(f"Apple ID {apple_id} برای {username} اضافه شد.")
-    # ... (کدهای مربوط به ذخیره سازی در پایگاه داده)
 
 def add_apple_ids_from_excel(ids_list):
     conn = sqlite3.connect(DB_PATH)
@@ -158,7 +159,8 @@ def mark_apple_id_sold(apple_id):
     conn.commit()
     conn.close()
 
-# سفارشات
+
+### --- Order Functions --- ###
 def add_order(user_id, apple_id, amount):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
@@ -188,7 +190,6 @@ def set_order_confirmed(order_id, confirmed=True):
     conn.commit()
     conn.close()
 
-# رسید پرداخت
 def save_receipt(order_id, receipt_path):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
