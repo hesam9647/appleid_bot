@@ -1,23 +1,76 @@
 import asyncio
 from aiogram import Bot
 from config import ADMIN_IDS
-
-async def broadcast_message(bot: Bot, text: str):
-    users = await get_all_users()
-    for user_id in users:
-        try:
-            await bot.send_message(user_id, text)
-            await asyncio.sleep(0.05)
-        except Exception as e:
-            print(f"Failed to send message to {user_id}: {e}")
-
-# کار با فایل اکسل با pandas
+from .database import add_apple_id  # مطمئن شوید که این import درست است
 import pandas as pd
-from database import add_apple_id
 
-def excel_to_apple_ids(file_path):
-    df = pd.read_excel(file_path)
-    # فرض می‌کنیم ستون اول اپل آیدی‌ها باشد
-    for apple_id in df.iloc[:,0]:
-        if isinstance(apple_id, str):
-            add_apple_id(apple_id.strip())
+async def ارسال_پیام_به_همه(bot: Bot, متن: str):
+    """
+    این تابع پیامی را به همه کاربران ثبت شده در پایگاه داده ارسال می‌کند.
+
+    Args:
+        bot: شیء Bot از aiogram.
+        متن: متنی که باید ارسال شود.
+    """
+    try:
+        کاربران = await دریافت_لیست_کاربران()  # فرض کنید تابع دریافت_لیست_کاربران تعریف شده است
+        for کاربر_id in کاربران:
+            try:
+                await bot.send_message(کاربر_id, متن)
+                await asyncio.sleep(0.05)  # مهم است برای جلوگیری از محدودیت نرخ ارسال
+            except Exception as e:
+                print(f"ارسال پیام به کاربر {کاربر_id} با خطا مواجه شد: {e}")
+                #  برای اشکال زدایی، بهتر است خطا را با جزئیات بیشتر ثبت کنید
+                #  مثلا در یک فایل log
+    except Exception as e:
+        print(f"خطای کلی در ارسال پیام: {e}")
+
+
+def اکسل_به_اپل_آیدی(مسیر_فایل_اکسل):
+    """
+    این تابع اپل آیدی ها را از یک فایل اکسل دریافت و در پایگاه داده ذخیره می کند.
+
+    Args:
+        مسیر_فایل_اکسل: مسیر فایل اکسل.
+
+    Returns:
+        لیست اپل آیدی ها
+        یا None اگر خطایی رخ دهد.
+    """
+    try:
+        df = pd.read_excel(مسیر_فایل_اکسل)
+        اپل_آیدی_ها = df.iloc[:, 0].tolist()  # ستون اول را به لیست تبدیل کنید
+        اپل_آیدی_های_موجود = []
+
+        # چک کنید که اپل آیدی ها در پایگاه داده وجود دارند یا نه. اگر وجود نداشتند، اضافه کنید.
+        for اپل_آیدی in اپل_آیدی_ها:
+            if isinstance(اپل_آیدی, str):
+                اپل_آیدی_های_موجود.append(اپل_آیدی)
+                # اینجا بررسی کنید که آیا اپل آیدی تکراری وجود دارد یا خیر و  نتیجه را به کاربر اطلاع دهید.
+        
+        # اگر می خواهید اپل آیدی ها را در پایگاه داده ذخیره کنید:
+        for اپل_آیدی in اپل_آیدی_های_موجود:
+            add_apple_id(اپل_آیدی)  # فرض کنید تابع add_apple_id در database.py وجود دارد.
+
+
+        return اپل_آیدی_های_موجود
+
+    except FileNotFoundError:
+        print(f"فایل اکسل {مسیر_فایل_اکسل} پیدا نشد.")
+        return None
+    except Exception as e:
+        print(f"خطایی در پردازش فایل اکسل رخ داد: {e}")
+        return None
+
+
+
+# مثال استفاده از تابع اکسل_به_اپل_آیدی
+# مسیر فایل اکسل را به صورت زیر قرار دهید:
+# اپل_آیدی_ها = اکسل_به_اپل_آیدی("مسیر_فایل_اکسل.xlsx")
+
+# اگر اپل_آیدی_ها مقدار معتبر داشت، می توانید از آن استفاده کنید.
+# اگر None بود، خطایی رخ داده است.
+
+
+# مثال استفاده از تابع ارسال_پیام_به_همه (مطمئن شوید که دریافت_لیست_کاربران و bot تعریف شده اند):
+# asyncio.run(ارسال_پیام_به_همه(bot, "پیام شما"))

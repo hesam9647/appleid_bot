@@ -1,6 +1,6 @@
 from aiogram import Router, types, F
 from keyboards.admin_kb import admin_main_kb, users_list_kb, user_manage_kb, apple_ids_manage_kb, toggle_service_kb, payment_approve_kb
-from database import get_all_users_info, block_user, is_user_blocked, add_apple_id, get_setting, set_setting, get_available_apple_id, mark_apple_id_sold, add_purchase, get_all_users
+from app.utils.database import get_all_users_info, block_user, is_user_blocked, add_apple_id, get_setting, set_setting, get_available_apple_id, mark_apple_id_sold, add_purchase, get_all_users
 from config import ADMIN_IDS
 import asyncio
 

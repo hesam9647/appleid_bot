@@ -1,5 +1,5 @@
 from aiogram import Router, types, F
-from database import add_user
+from app.utils.database import add_user
 from keyboards.user_kb import user_main_kb
 from config import ADMIN_IDS
 
@@ -14,7 +14,7 @@ async def cmd_start(message: types.Message):
 
 @router.message()
 async def check_block(message: types.Message):
-    from database import is_user_blocked
+    from app.utils.database import is_user_blocked
     if is_user_blocked(message.from_user.id):
         await message.answer("❌ شما از استفاده از ربات بلاک شده‌اید.")
         return

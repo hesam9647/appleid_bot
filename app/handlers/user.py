@@ -1,6 +1,6 @@
 from aiogram import Router, types, F
 from keyboards.user_kb import user_main_kb, buy_service_kb, wallet_kb, purchase_history_kb, help_kb
-from database import get_wallet, update_wallet, get_purchases, add_purchase, get_available_apple_id, mark_apple_id_sold
+from app.utils.database import get_wallet, update_wallet, get_purchases, add_purchase, get_available_apple_id, mark_apple_id_sold
 from config import ADMIN_IDS
 
 router = Router()
