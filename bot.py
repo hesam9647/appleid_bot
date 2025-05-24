@@ -2,7 +2,6 @@ import asyncio
 import os
 import sqlite3
 import openpyxl
-
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -15,7 +14,11 @@ from aiogram.filters import Command
 from app.utils import database as db
 from config import TOKEN, ADMIN_IDS
 from app.utils.database import add_apple_id
+from app.utils.database import init_db
 
+async def main():
+    init_db()  # حتما این خط را دارید
+    await dp.start_polling(bot)
 # --- تنظیمات اصلی ---
 bot = Bot(token=TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
