@@ -8,50 +8,27 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
-from aiogram.exceptions import TelegramAPIError
 from aiogram.filters import Command
-
-from app.utils import database as db
 from config import TOKEN, ADMIN_IDS
-from app.utils.database import add_apple_id
-from app.utils.database import init_db
+from app.utils import database as db
 
-async def main():
-    init_db()  # حتما این خط را دارید
-    await dp.start_polling(bot)
-# --- تنظیمات اصلی ---
+# --- راه‌اندازی بات ---
 bot = Bot(token=TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
-# --- کیبوردهای اصلی ---
+# --- کیبوردهای کاربر ---
 def main_menu():
     kb = ReplyKeyboardBuilder()
-    kb.row(
-        KeyboardButton(text="🛒 خرید سرویس"),
-        KeyboardButton(text="💼 کیف پول")
-    )
-    kb.row(
-        KeyboardButton(text="📄 سوابق خرید"),
-        KeyboardButton(text="📖 راهنما")
-    )
-    kb.adjust(2)
+    kb.row(KeyboardButton(text="🛒 خرید سرویس"), KeyboardButton(text="💼 کیف پول"))
+    kb.row(KeyboardButton(text="📄 سوابق خرید"), KeyboardButton(text="📖 راهنما"))
     return kb.as_markup(resize_keyboard=True)
 
+# --- کیبوردهای ادمین ---
 def admin_menu():
     kb = ReplyKeyboardBuilder()
-    kb.row(
-        KeyboardButton(text="🛠️ مدیریت کاربران"),
-        KeyboardButton(text="📢 ارسال پیام به همه")
-    )
-    kb.row(
-        KeyboardButton(text="➕ افزودن اپل آیدی متنی"),
-        KeyboardButton(text="🚀 آپلود فایل اکسل")
-    )
-    kb.row(
-        KeyboardButton(text="🔧 تغییر وضعیت فروش"),
-        KeyboardButton(text="🔙 بازگشت")
-    )
-    kb.adjust(2)
+    kb.row(KeyboardButton(text="🛠️ مدیریت کاربران"), KeyboardButton(text="📢 ارسال پیام به همه"))
+    kb.row(KeyboardButton(text="➕ افزودن اپل آیدی متنی"), KeyboardButton(text="🚀 آپلود فایل اکسل"))
+    kb.row(KeyboardButton(text="🔧 تغییر وضعیت فروش"), KeyboardButton(text="🔙 بازگشت"))
     return kb.as_markup(resize_keyboard=True)
 
 # --- استیت‌ها ---
@@ -64,7 +41,7 @@ class AdminStates(StatesGroup):
 def is_admin(user_id):
     return user_id in ADMIN_IDS
 
-# --- هندلرها ---
+# --- شروع ---
 @dp.message(Command("start"))
 async def start_cmd(message: types.Message):
     user_id = message.from_user.id
@@ -73,6 +50,7 @@ async def start_cmd(message: types.Message):
     if is_admin(user_id):
         await message.answer("👑 وارد پنل ادمین شدید.", reply_markup=admin_menu())
 
+# --- خرید سرویس ---
 @dp.message(F.text == "🛒 خرید سرویس")
 async def buy_service(m: types.Message):
     if not db.get_service_status():
@@ -83,23 +61,26 @@ async def buy_service(m: types.Message):
     ])
     await m.answer("روش پرداخت مورد نظر خود را انتخاب کنید:", reply_markup=markup)
 
+# --- کیف پول ---
 @dp.message(F.text == "💼 کیف پول")
 async def wallet(m: types.Message):
     user = db.get_user(m.from_user.id)
     balance = user[2] if user else 0
     await m.answer(f"💰 موجودی کیف پول شما: {balance} تومان", reply_markup=main_menu())
 
+# --- سوابق خرید ---
 @dp.message(F.text == "📄 سوابق خرید")
 async def orders_history(m: types.Message):
     orders = db.get_user_orders(m.from_user.id)
     if not orders:
-        await m.answer("📭 هیچ خریدی ثبت نشده است.", reply_markup=main_menu())
+        await m.answer("📭 هیچ خریدی ثبت نشده است.")
         return
     msg = "📝 سوابق خریدهای شما:\n"
     for order in orders:
         msg += f"• اپل آیدی: {order[2]} | مبلغ: {order[3]} | وضعیت: {order[4]}\n"
-    await m.answer(msg, reply_markup=main_menu())
+    await m.answer(msg)
 
+# --- راهنما ---
 @dp.message(F.text == "📖 راهنما")
 async def guide(m: types.Message):
     text = """
@@ -110,20 +91,23 @@ async def guide(m: types.Message):
 🔹 سوابق خرید در قسمت مربوطه نمایش داده می‌شود.
 🌟 در صورت نیاز به پشتیبانی، با ادمین تماس بگیرید.
 """
-    await m.answer(text, reply_markup=main_menu())
+    await m.answer(text)
 
+# --- روش خرید ---
 @dp.message(F.text.in_(["💳 کارت به کارت", "💼 کیف پول"]))
 async def purchase_method(m: types.Message):
     if m.text == "💳 کارت به کارت":
-        await m.answer("لطفاً رسید پرداخت خود را ارسال کنید تا بررسی شود. پس از تایید، اپل آی‌دی برای شما ارسال می‌شود.")
+        await m.answer("لطفاً رسید پرداخت خود را ارسال کنید تا بررسی شود.")
     else:
         user = db.get_user(m.from_user.id)
-        await m.answer(f"موجودی کیف پول شما: {user[2]} تومان", reply_markup=main_menu())
+        await m.answer(f"موجودی کیف پول شما: {user[2]} تومان")
 
+# --- رسید پرداخت ---
 @dp.message(F.content_type.in_(['photo', 'document']))
 async def receive_receipt(m: types.Message):
-    await m.answer("رسید شما دریافت شد و در حال بررسی است. پس از تایید، اپل آی‌دی برایتان ارسال می‌شود.")
+    await m.answer("رسید شما دریافت شد و در حال بررسی است.")
 
+# --- مدیریت کاربران ---
 @dp.message(F.text == "🛠️ مدیریت کاربران")
 async def manage_users(m: types.Message):
     if not is_admin(m.from_user.id):
@@ -152,6 +136,7 @@ async def manage_user_callback(c: types.CallbackQuery):
         await c.answer(f"کاربر {user_id} به حالت {status_text} تغییر کرد.")
         await manage_users(c.message)
 
+# --- پیام همگانی ---
 @dp.message(F.text == "📢 ارسال پیام به همه")
 async def broadcast_message(m: types.Message, state: FSMContext):
     if not is_admin(m.from_user.id):
@@ -168,12 +153,13 @@ async def process_broadcast(m: types.Message, state: FSMContext):
             await bot.send_message(uid, text)
         except:
             continue
-    await m.answer("پیام به تمامی کاربران ارسال شد.", reply_markup=admin_menu())
+    await m.answer("پیام به همه کاربران ارسال شد.", reply_markup=admin_menu())
     await state.clear()
 
+# --- افزودن اپل آیدی متنی ---
 @dp.message(F.text == "➕ افزودن اپل آیدی متنی")
 async def add_apple_ids_text(m: types.Message, state: FSMContext):
-    await m.answer("لطفاً اپل آیدی‌ها را وارد کنید، هر آی‌دی در یک خط:")
+    await m.answer("اپل آیدی‌ها را هرکدام در یک خط وارد کنید:")
     await state.set_state(AdminStates.adding_apple_ids_text)
 
 @dp.message(AdminStates.adding_apple_ids_text)
@@ -183,9 +169,10 @@ async def save_apple_ids_text(m: types.Message, state: FSMContext):
         aid = aid.strip()
         if aid:
             db.add_apple_id(aid)
-    await m.answer("اپل آیدی‌ها ثبت شدند.", reply_markup=admin_menu())
+    await m.answer("✅ اپل آیدی‌ها ثبت شدند.", reply_markup=admin_menu())
     await state.clear()
 
+# --- آپلود اکسل ---
 @dp.message(F.document)
 async def upload_excel(m: types.Message):
     if not is_admin(m.from_user.id):
@@ -202,24 +189,25 @@ async def upload_excel(m: types.Message):
             if cell:
                 ids.append(str(cell))
     db.add_apple_ids_from_excel(ids)
-    await m.answer("اپل آیدی‌ها اضافه شدند.", reply_markup=admin_menu())
+    await m.answer("📥 اپل آیدی‌ها از فایل اکسل اضافه شدند.", reply_markup=admin_menu())
 
+# --- تغییر وضعیت فروش ---
 @dp.message(F.text == "🔧 تغییر وضعیت فروش")
 async def change_status(m: types.Message):
     if not is_admin(m.from_user.id):
         return
     db.toggle_service_status()
     status = "باز" if db.get_service_status() else "بسته"
-    await m.answer(f"وضعیت فروش تغییر کرد. حالا فروش {status} است.", reply_markup=admin_menu())
+    await m.answer(f"وضعیت فروش اکنون: {status}", reply_markup=admin_menu())
 
+# --- پیام پیش‌فرض ---
 @dp.message()
 async def default_response(m: types.Message):
-    await m.answer("لطفاً از منوی موجود استفاده کنید.", reply_markup=main_menu())
+    await m.answer("لطفاً از منوی زیر استفاده کنید.", reply_markup=main_menu())
 
-# --- راه‌اندازی نهایی ---
+# --- اجرای بات ---
 async def main():
-    from app.utils.database import init_db
-    init_db()
+    db.init_db()
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
