@@ -5,10 +5,12 @@ from aiogram.client.default import DefaultBotProperties
 
 from app.config import load_config
 from app.handlers.user import router as user_router
+from app.handlers.admin import router as admin_router
 from app.database import init_db
 
+
 async def main():
-    # تنظیمات لاگ‌ها
+    # تنظیمات لاگ
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
@@ -17,23 +19,28 @@ async def main():
     # بارگذاری تنظیمات
     config = load_config()
 
-    # ایجاد بات با تنظیمات جدید Aiogram 3.7
+    # ساخت شی بات
     bot = Bot(
         token=config.tg_bot.token,
         default=DefaultBotProperties(parse_mode="HTML")
     )
 
-    # ایجاد Dispatcher
+    # ساخت دیسپچر
     dp = Dispatcher()
+    
+    # اضافه کردن کانفیگ به دیسپچر برای استفاده در میدل‌ویرها
+    dp["config"] = config
 
-    # مقداردهی اولیه پایگاه‌داده (در صورت نیاز)
-    db_session = init_db(config.db.database)
+    # مقداردهی اولیه دیتابیس
+    init_db(config.db.database)  # فرض بر sync بودن
 
-    # افزودن روت‌های کاربری
+    # اضافه کردن روترها
     dp.include_router(user_router)
+    dp.include_router(admin_router)
 
-    # اجرای ربات
+    # شروع ربات
     await dp.start_polling(bot)
+
 
 if __name__ == "__main__":
     asyncio.run(main())
