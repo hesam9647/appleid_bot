@@ -16,7 +16,7 @@ def init_db():
             blocked INTEGER DEFAULT 0
         )
     ''')
-
+    
     # جدول اپل آیدی‌ها
     c.execute('''
         CREATE TABLE IF NOT EXISTS apple_ids (
@@ -241,3 +241,63 @@ def save_broadcast(message):
     c.execute('INSERT INTO broadcasts (message) VALUES (?)', (message,))
     conn.commit()
     conn.close()
+
+def create_tickets_table():
+    conn = sqlite3.connect("database.db")
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS tickets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            message TEXT,
+            reply TEXT,
+            status TEXT DEFAULT 'pending',
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+create_tickets_table()
+
+def add_ticket(user_id: int, message: str):
+    conn = sqlite3.connect("database.db")
+    c = conn.cursor()
+    c.execute("INSERT INTO tickets (user_id, message) VALUES (?, ?)", (user_id, message))
+    conn.commit()
+    conn.close()
+
+def get_all_tickets():
+    conn = sqlite3.connect("database.db")
+    c = conn.cursor()
+    c.execute("SELECT id, user_id, message, reply, status FROM tickets ORDER BY id DESC")
+    tickets = c.fetchall()
+    conn.close()
+    return tickets
+
+def get_ticket_by_id(ticket_id: int):
+    conn = sqlite3.connect("database.db")
+    c = conn.cursor()
+    c.execute("SELECT * FROM tickets WHERE id = ?", (ticket_id,))
+    ticket = c.fetchone()
+    conn.close()
+    return ticket
+
+def reply_to_ticket(ticket_id: int, reply: str):
+    conn = sqlite3.connect("database.db")
+    c = conn.cursor()
+    c.execute("UPDATE tickets SET reply = ?, status = 'answered' WHERE id = ?", (reply, ticket_id))
+    conn.commit()
+    conn.close()
+
+def create_tables():
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS apple_ids (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            apple_id TEXT UNIQUE,
+            price INTEGER,
+            location TEXT,
+            sold BOOLEAN DEFAULT 0
+        )
+    ''')
+    conn.commit()
