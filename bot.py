@@ -235,12 +235,15 @@ async def send_ticket_reply(m: types.Message, state: FSMContext):
     data = await state.get_data()
     user_id = data.get("reply_to")
     try:
-        await bot.send_message(user_id, f"✉️ پاسخ پشتیبانی:
-{m.text}")
+        await bot.send_message(user_id, f"""✉️ پاسخ پشتیبانی:
+
+{m.text}
+""")
         await m.answer("✅ پاسخ ارسال شد.", reply_markup=admin_menu())
     except:
         await m.answer("❌ ارسال پیام ناموفق بود.", reply_markup=admin_menu())
     await state.clear()
+
 
 # --- پیام پیش‌فرض ---
 @dp.message()
