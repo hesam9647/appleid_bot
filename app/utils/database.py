@@ -36,7 +36,31 @@ def init_db():
             status TEXT DEFAULT 'Pending',
             receipt TEXT,
             confirmed INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY(user_id) REFERENCES users(user_id)
+        )
+    ''')
+
+    # جدول پرداخت‌ها
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS payments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            method TEXT,
+            amount REAL,
+            ref_code TEXT,
+            verified INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(user_id) REFERENCES users(user_id)
+        )
+    ''')
+
+    # جدول پیام‌های عمومی
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS broadcasts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            message TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
         )
     ''')
 
@@ -152,13 +176,6 @@ def get_remaining_apple_ids():
     conn.close()
     return count
 
-def mark_apple_id_sold(apple_id):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute('UPDATE apple_ids SET sold=1 WHERE apple_id=?', (apple_id,))
-    conn.commit()
-    conn.close()
-
 
 ### --- Order Functions --- ###
 def add_order(user_id, apple_id, amount):
@@ -194,5 +211,33 @@ def save_receipt(order_id, receipt_path):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute('UPDATE orders SET receipt=? WHERE id=?', (receipt_path, order_id))
+    conn.commit()
+    conn.close()
+
+
+### --- Payment Functions --- ###
+def log_payment(user_id, method, amount, ref_code):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('''
+        INSERT INTO payments (user_id, method, amount, ref_code)
+        VALUES (?, ?, ?, ?)
+    ''', (user_id, method, amount, ref_code))
+    conn.commit()
+    conn.close()
+
+def verify_payment(payment_id):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('UPDATE payments SET verified=1 WHERE id=?', (payment_id,))
+    conn.commit()
+    conn.close()
+
+
+### --- Broadcast Log --- ###
+def save_broadcast(message):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('INSERT INTO broadcasts (message) VALUES (?)', (message,))
     conn.commit()
     conn.close()
