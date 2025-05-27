@@ -31,3 +31,12 @@ class AdminAccessMiddleware(BaseMiddleware):
             return
 
         return await handler(event, data)
+class LoggingMiddleware(BaseMiddleware):
+    async def __call__(
+        self,
+        handler: Callable[[Union[Message, CallbackQuery], Dict[str, Any]], Awaitable[Any]],
+        event: Union[Message, CallbackQuery],
+        data: Dict[str, Any]
+    ) -> Any:
+        print(f"⚙️ Event received: {event}")
+        return await handler(event, data)
