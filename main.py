@@ -10,10 +10,11 @@ from app.config import load_config
 from app.database import init_db
 from app.middlewares import (
     DatabaseMiddleware,
-    ThrottlingMiddleware,
+    CacheMiddleware,      # ← این رو اضافه کن بجای ThrottlingMiddleware
     AuthMiddleware,
     LoggingMiddleware
 )
+
 from app.handlers import (
     admin_router,
     user_router,
@@ -61,8 +62,8 @@ async def main():
     dp.message.middleware(DatabaseMiddleware(session_pool))
     dp.callback_query.middleware(DatabaseMiddleware(session_pool))
     
-    dp.message.middleware(ThrottlingMiddleware(redis))
-    dp.callback_query.middleware(ThrottlingMiddleware(redis))
+    dp.message.middleware(CacheMiddleware(redis))
+    dp.callback_query.middleware(CacheMiddleware(redis))
     
     dp.message.middleware(AuthMiddleware())
     dp.callback_query.middleware(AuthMiddleware())
