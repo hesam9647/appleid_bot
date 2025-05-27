@@ -1,46 +1,112 @@
 import asyncio
 import logging
 from aiogram import Bot, Dispatcher
-from aiogram.client.default import DefaultBotProperties
+from aiogram.fsm.storage.redis import RedisStorage
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from redis.asyncio import Redis
+import sentry_sdk
 
 from app.config import load_config
-from app.handlers.user import router as user_router
-from app.handlers.admin import router as admin_router
 from app.database import init_db
+from app.middlewares import (
+    DatabaseMiddleware,
+    ThrottlingMiddleware,
+    AuthMiddleware,
+    LoggingMiddleware
+)
+from app.handlers import (
+    admin_router,
+    user_router,
+    error_router,
+    payment_router,
+    product_router
+)
+from app.services.backup_service import BackupService
+from app.utils.logger import setup_logger
 
+# Setup Sentry for error tracking
+sentry_sdk.init(
+    dsn="your-sentry-dsn",
+    traces_sample_rate=1.0,
+)
 
 async def main():
-    # تنظیمات لاگ
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
-    )
-
-    # بارگذاری تنظیمات
+    # Load config
     config = load_config()
-
-    # ساخت شی بات
-    bot = Bot(
-        token=config.tg_bot.token,
-        default=DefaultBotProperties(parse_mode="HTML")
-    )
-
-    # ساخت دیسپچر
-    dp = Dispatcher()
     
-    # اضافه کردن کانفیگ به دیسپچر برای استفاده در میدل‌ویرها
-    dp["config"] = config
-
-    # مقداردهی اولیه دیتابیس
-    init_db(config.db.database)  # فرض بر sync بودن
-
-    # اضافه کردن روترها
-    dp.include_router(user_router)
+    # Setup logging
+    logger = setup_logger()
+    
+    # Initialize Redis
+    redis = Redis(
+        host=config.redis.host,
+        port=config.redis.port,
+        password=config.redis.password
+    )
+    
+    # Initialize storage for FSM
+    storage = RedisStorage(redis=redis)
+    
+    # Initialize bot and dispatcher
+    bot = Bot(token=config.tg_bot.token, parse_mode="HTML")
+    dp = Dispatcher(storage=storage)
+    
+    # Initialize database
+    session_pool = await init_db(config.db.database_url)
+    
+    # Initialize scheduler
+    scheduler = AsyncIOScheduler()
+    
+    # Register middlewares
+    dp.message.middleware(DatabaseMiddleware(session_pool))
+    dp.callback_query.middleware(DatabaseMiddleware(session_pool))
+    
+    dp.message.middleware(ThrottlingMiddleware(redis))
+    dp.callback_query.middleware(ThrottlingMiddleware(redis))
+    
+    dp.message.middleware(AuthMiddleware())
+    dp.callback_query.middleware(AuthMiddleware())
+    
+    dp.message.middleware(LoggingMiddleware(logger))
+    dp.callback_query.middleware(LoggingMiddleware(logger))
+    
+    # Register routers
     dp.include_router(admin_router)
+    dp.include_router(user_router)
+    dp.include_router(error_router)
+    dp.include_router(payment_router)
+    dp.include_router(product_router)
+    
+    # Setup backup service
+    backup_service = BackupService(config.backup.path)
+    
+    # Schedule backup
+    scheduler.add_job(
+        backup_service.create_backup,
+        'cron',
+        hour=3,  # Run at 3 AM
+        args=[config.db.database_url]
+    )
+    
+    # Schedule cache cleanup
+    scheduler.add_job(
+        redis.flushdb,
+        'cron',
+        hour=4  # Run at 4 AM
+    )
+    
+    # Start scheduler
+    scheduler.start()
+    
+    try:
+        await dp.start_polling(bot)
+    finally:
+        await dp.storage.close()
+        await bot.session.close()
+        await redis.close()
 
-    # شروع ربات
-    await dp.start_polling(bot)
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
+if __name__ == '__main__':
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        logging.info("Bot stopped!")

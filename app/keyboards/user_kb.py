@@ -20,3 +20,40 @@ def wallet_kb() -> InlineKeyboardMarkup:
     builder.button(text="🔙 بازگشت", callback_data="main_menu")
     builder.adjust(2)
     return builder.as_markup()
+
+def payment_kb() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text="💳 50,000 تومان", callback_data="pay_50000")
+    builder.button(text="💳 100,000 تومان", callback_data="pay_100000")
+    builder.button(text="💳 200,000 تومان", callback_data="pay_200000")
+    builder.button(text="🔙 بازگشت", callback_data="wallet")
+    builder.adjust(2)
+    return builder.as_markup()
+
+def product_kb(products: List[Product]) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    
+    for product in products:
+        if product.stock > 0:
+            builder.button(
+                text=f"{product.name} - {product.base_price:,} تومان",
+                callback_data=f"product_{product.id}"
+            )
+    
+    builder.button(text="🔙 بازگشت", callback_data="main_menu")
+    builder.adjust(1)
+    return builder.as_markup()
+
+def order_kb() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text="✅ تأیید و پرداخت", callback_data="confirm_order")
+    builder.button(text="❌ انصراف", callback_data="cancel_order")
+    builder.adjust(1)
+    return builder.as_markup()
+
+def payment_kb(order_id: int) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text="💳 پرداخت", callback_data=f"pay_order_{order_id}")
+    builder.button(text="❌ انصراف", callback_data=f"cancel_order_{order_id}")
+    builder.adjust(1)
+    return builder.as_markup()

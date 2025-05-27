@@ -40,10 +40,30 @@ class Ticket(Base):
     
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id'))
-    subject = Column(String)
-    status = Column(String)  # 'open', 'in_progress', 'answered', 'closed'
+    title = Column(String)
+    status = Column(String, default='open')  # open, in_progress, answered, closed
+    priority = Column(String, default='normal')  # low, normal, high
     created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    user = relationship("User", back_populates="tickets")
+    messages = relationship("TicketMessage", back_populates="ticket")
 
+class TicketMessage(Base):
+    __tablename__ = 'ticket_messages'
+    
+    id = Column(Integer, primary_key=True)
+    ticket_id = Column(Integer, ForeignKey('tickets.id'))
+    sender_id = Column(Integer, ForeignKey('users.id'))
+    message_type = Column(String, default='text')  # text, photo, file
+    content = Column(String)
+    file_id = Column(String, nullable=True)
+    is_from_admin = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    ticket = relationship("Ticket", back_populates="messages")
 def init_db(database_url: str):
     engine = create_engine(database_url)
     Base.metadata.create_all(engine)
@@ -106,3 +126,56 @@ class RateLimit(Base):
     action = Column(String)
     count = Column(Integer, default=1)
     reset_at = Column(DateTime)
+
+class ProductCategory(Base):
+    __tablename__ = 'product_categories'
+    
+    id = Column(Integer, primary_key=True)
+    name = Column(String)
+    description = Column(String, nullable=True)
+    parent_id = Column(Integer, ForeignKey('product_categories.id'), nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    products = relationship("Product", back_populates="category")
+    subcategories = relationship("ProductCategory")
+
+class Order(Base):
+    __tablename__ = 'orders'
+    
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'))
+    total_amount = Column(Float)
+    status = Column(String)  # pending, paid, completed, cancelled
+    payment_id = Column(Integer, ForeignKey('payments.id'), nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+    
+    user = relationship("User", back_populates="orders")
+    items = relationship("OrderItem", back_populates="order")
+
+class OrderItem(Base):
+    __tablename__ = 'order_items'
+    
+    id = Column(Integer, primary_key=True)
+    order_id = Column(Integer, ForeignKey('orders.id'))
+    product_id = Column(Integer, ForeignKey('products.id'))
+    quantity = Column(Integer)
+    price = Column(Float)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    order = relationship("Order", back_populates="items")
+    product = relationship("Product")
+
+class Notification(Base):
+    __tablename__ = 'notifications'
+    
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'))
+    title = Column(String)
+    message = Column(String)
+    type = Column(String)  # info, warning, success, error
+    is_read = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    user = relationship("User", back_populates="notifications")
