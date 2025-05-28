@@ -4,3 +4,7 @@ aiosqlite
 python-dotenv
 pandas
 openpyxl
+redis
+apscheduler
+sentry_sdk
+environs

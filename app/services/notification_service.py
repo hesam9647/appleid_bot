@@ -3,6 +3,8 @@ from sqlalchemy import select
 from typing import List, Optional
 from datetime import datetime
 
+from app.database import Product, Order, User  # اضافه کردن import های مورد نیاز
+
 class NotificationService:
     def __init__(self, session: Session, bot):
         self.session = session
