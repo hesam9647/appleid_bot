@@ -17,24 +17,8 @@ class ProductStates(StatesGroup):
 
 @router.callback_query(F.data == "admin_products")
 async def show_products_menu(callback: CallbackQuery):
-    product_service = ProductService(callback.bot.get('db_session'))
-    products = await product_service.get_active_products()
-    
-    text = "📦 مدیریت محصولات\n\n"
-    for product in products:
-        text += f"📌 {product.name}\n"
-        text += f"💰 قیمت: {product.base_price:,} تومان\n"
-        text += f"📦 موجودی: {product.stock}\n\n"
-    
     await callback.message.edit_text(
-        text,
+        "📦 مدیریت محصولات\n"
+        "لطفاً یکی از گزینه‌های زیر را انتخاب کنید:",
         reply_markup=admin_products_kb()
     )
-
-@router.callback_query(F.data == "admin_add_product")
-async def add_product(callback: CallbackQuery, state: FSMContext):
-    await callback.message.edit_text(
-        "📦 افزودن محصول جدید\n"
-        "لطفاً نام محصول را وارد کنید:"
-    )
-    await state.set_state(ProductStates.waiting_for_name)

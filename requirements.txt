@@ -8,3 +8,4 @@ redis
 apscheduler
 sentry_sdk
 environs
+asyncpg

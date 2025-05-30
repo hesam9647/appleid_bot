@@ -139,3 +139,5 @@ async def show_category_products(callback: CallbackQuery):
         text,
         reply_markup=product_kb(products)
     )
+
+products_router = router
