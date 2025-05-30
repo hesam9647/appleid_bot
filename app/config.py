@@ -8,8 +8,13 @@ class TgBot:
     admin_ids: List[int]
 
 @dataclass
+class DbConfig:
+    database_url: str
+
+@dataclass
 class Config:
     tg_bot: TgBot
+    db: DbConfig
 
 def load_config(path: str = None) -> Config:
     env = Env()
@@ -19,5 +24,8 @@ def load_config(path: str = None) -> Config:
         tg_bot=TgBot(
             token=env.str("BOT_TOKEN"),
             admin_ids=[int(id.strip()) for id in env.str("ADMIN_IDS").split(",")]
+        ),
+        db=DbConfig(
+            database_url=env.str("DATABASE_URL")
         )
     )
