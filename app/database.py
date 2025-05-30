@@ -4,6 +4,7 @@ from sqlalchemy import (
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
 Base = declarative_base()
 
@@ -226,3 +227,11 @@ def init_db(database_url: str):
     engine = create_engine(database_url)
     Base.metadata.create_all(engine)
     return sessionmaker(bind=engine)
+
+def init_db(database_url: str):
+    # نمونه‌سازی از async engine
+    engine = create_async_engine(database_url, echo=False)
+    
+    # ساخت session factory
+    async_session = async_sessionmaker(bind=engine, expire_on_commit=False)
+    return async_session
