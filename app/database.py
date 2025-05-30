@@ -209,6 +209,18 @@ class Notification(Base):
 
     user = relationship("User", back_populates="notifications")
 
+
+class Payment(Base):
+    __tablename__ = 'payments'
+
+    id = Column(Integer, primary_key=True)
+    method = Column(String)  # مثل کارت به کارت، درگاه آنلاین و غیره
+    status = Column(String)  # مثلا 'pending', 'completed'
+    amount = Column(Float)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    # سایر فیلدهای مورد نیاز
+
+
 # ---------------------- DB Initializer ----------------------
 def init_db(database_url: str):
     engine = create_engine(database_url)
