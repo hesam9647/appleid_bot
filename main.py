@@ -6,11 +6,20 @@ from aiogram.client.default import DefaultBotProperties
 
 from app.config import load_config
 from app.handlers import admin_router, user_router
-from app.middlewares import DatabaseMiddleware, ThrottlingMiddleware, AuthMiddleware, LoggingMiddleware
+from app.middlewares import (
+    DatabaseMiddleware,
+    ThrottlingMiddleware,
+    AuthMiddleware,
+    LoggingMiddleware
+)
 from app.database import init_db
 
 async def main():
-    logging.basicConfig(level=logging.INFO)
+    # Logging setup
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
 
     # Load config
     config = load_config()
@@ -21,11 +30,11 @@ async def main():
         default=DefaultBotProperties(parse_mode="HTML")
     )
 
+    # ✅ Inject config into bot directly (not dispatcher)
+    bot.config = config
+
     # Create dispatcher
     dp = Dispatcher()
-
-    # Inject config into dispatcher context
-    dp['config'] = config
 
     # Set bot commands
     await bot.set_my_commands([
@@ -38,20 +47,13 @@ async def main():
 
     # Register middlewares
     db_middleware = DatabaseMiddleware(session_pool=SessionLocal)
-    dp.message.middleware(db_middleware)
-    dp.callback_query.middleware(db_middleware)
-
     throttling = ThrottlingMiddleware()
-    dp.message.middleware(throttling)
-    dp.callback_query.middleware(throttling)
-
     auth = AuthMiddleware()
-    dp.message.middleware(auth)
-    dp.callback_query.middleware(auth)
-
     logging_mw = LoggingMiddleware()
-    dp.message.middleware(logging_mw)
-    dp.callback_query.middleware(logging_mw)
+
+    for middleware in [db_middleware, throttling, auth, logging_mw]:
+        dp.message.middleware(middleware)
+        dp.callback_query.middleware(middleware)
 
     # Register routers
     dp.include_router(admin_router)
