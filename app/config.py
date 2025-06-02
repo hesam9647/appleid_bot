@@ -3,13 +3,13 @@ from environs import Env
 from typing import List
 
 @dataclass
+class DbConfig:
+    database_url: str
+
+@dataclass
 class TgBot:
     token: str
     admin_ids: List[int]
-
-@dataclass
-class DbConfig:
-    database_url: str
 
 @dataclass
 class Config:
