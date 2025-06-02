@@ -31,10 +31,18 @@ async def main():
             default=DefaultBotProperties(parse_mode=ParseMode.HTML)
         )
         dp = Dispatcher()
+
+        # Store config and session_pool in dispatcher data
+        dp["config"] = config
+        dp["session_pool"] = session_pool
         
         # Setup middlewares
         dp.message.middleware(DatabaseMiddleware(session_pool))
         dp.callback_query.middleware(DatabaseMiddleware(session_pool))
+        
+        # Register admin filter for admin router
+        admin_router.message.filter(lambda m: m.from_user.id in config.tg_bot.admin_ids)
+        admin_router.callback_query.filter(lambda c: c.from_user.id in config.tg_bot.admin_ids)
         
         # Register routers
         dp.include_router(admin_router)
