@@ -543,3 +543,31 @@ async def handle_payment_approval(update: Update, context: ContextTypes.DEFAULT_
             f"❌ پرداخت با کد {payment_id} رد شد."
         )
 
+async def handle_back(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """هندلر دکمه‌های بازگشت"""
+    query = update.callback_query
+    await query.answer()
+    
+    callback_data = query.data
+    
+    if callback_data == 'back_to_main':
+        from keyboards.user_keyboards import main_menu_keyboard
+        await query.message.edit_text(
+            "به ربات فروش اپل آیدی خوش آمدید!",
+            reply_markup=main_menu_keyboard()
+        )
+    
+    elif callback_data == 'back_to_admin':
+        from keyboards.admin_keyboards import admin_main_keyboard
+        await query.message.edit_text(
+            "🔰 پنل مدیریت\n\nخوش آمدید. لطفاً یکی از گزینه‌های زیر را انتخاب کنید:",
+            reply_markup=admin_main_keyboard()
+        )
+    
+    elif callback_data == 'back_to_buy':
+        from keyboards.user_keyboards import buy_service_keyboard
+        await query.message.edit_text(
+            "🛍 فروشگاه اپل آیدی\n\n"
+            "لطفاً نوع اپل آیدی مورد نظر خود را انتخاب کنید:",
+            reply_markup=buy_service_keyboard()
+        )
