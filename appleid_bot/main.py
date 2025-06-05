@@ -3,6 +3,21 @@ from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler, MessageHandler,
     filters, ContextTypes, ConversationHandler
 )
+# apple_id_bot/main.py
+from handlers.admin_handler import (
+    admin_panel, manage_users, manage_apple_ids, 
+    add_apple_id_start, add_apple_id_email, add_apple_id_password,
+    add_apple_id_email_pass, add_apple_id_birth,
+    add_apple_id_security_q1, add_apple_id_security_a1,
+    add_apple_id_security_q2, add_apple_id_security_a2,
+    add_apple_id_security_q3, add_apple_id_security_a3,
+    confirm_apple_id, list_apple_ids, manage_single_apple_id,
+    WAITING_FOR_EMAIL, WAITING_FOR_PASSWORD, WAITING_FOR_EMAIL_PASS,
+    WAITING_FOR_BIRTH, WAITING_FOR_SECURITY_Q1, WAITING_FOR_SECURITY_A1,
+    WAITING_FOR_SECURITY_Q2, WAITING_FOR_SECURITY_A2,
+    WAITING_FOR_SECURITY_Q3, WAITING_FOR_SECURITY_A3
+)
+
 
 from config.config import BOT_TOKEN
 from database.db_handler import DatabaseManager
@@ -53,7 +68,30 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     application = Application.builder().token(BOT_TOKEN).build()
-
+    # هندلر افزودن اپل آیدی
+    apple_id_conv_handler = ConversationHandler(
+        entry_points=[CallbackQueryHandler(add_apple_id_start, pattern=r'^add_apple_id$')],
+        states={
+            WAITING_FOR_EMAIL: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_apple_id_email)],
+            WAITING_FOR_PASSWORD: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_apple_id_password)],
+            WAITING_FOR_EMAIL_PASS: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_apple_id_email_pass)],
+            WAITING_FOR_BIRTH: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_apple_id_birth)],
+            WAITING_FOR_SECURITY_Q1: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_apple_id_security_q1)],
+            WAITING_FOR_SECURITY_A1: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_apple_id_security_a1)],
+            WAITING_FOR_SECURITY_Q2: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_apple_id_security_q2)],
+            WAITING_FOR_SECURITY_A2: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_apple_id_security_a2)],
+            WAITING_FOR_SECURITY_Q3: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_apple_id_security_q3)],
+            WAITING_FOR_SECURITY_A3: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_apple_id_security_a3)]
+        },
+        fallbacks=[
+            CallbackQueryHandler(confirm_apple_id, pattern=r'^confirm_apple_id$'),
+            CallbackQueryHandler(admin_panel, pattern=r'^cancel_apple_id$')
+        ]
+    )
+    
+    application.add_handler(apple_id_conv_handler)
+    application.add_handler(CallbackQueryHandler(list_apple_ids, pattern=r'^list_apple_ids$'))
+    application.add_handler(CallbackQueryHandler(manage_single_apple_id, pattern=r'^apple_id_\d+$'))
     # ✅ هندلرهای عمومی
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("admin", admin_panel))
