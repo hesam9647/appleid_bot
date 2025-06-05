@@ -22,7 +22,10 @@ from handlers.admin_handler import (
 from config.config import BOT_TOKEN
 from database.db_handler import DatabaseManager
 from keyboards.user_keyboards import main_menu_keyboard
-
+from handlers.help_handler import (
+    show_help, show_purchase_help, show_payment_help,
+    show_faq, show_rules
+)
 # هندلرهای کاربر
 from handlers.user_handler import handle_buy_service, handle_wallet
 
@@ -68,6 +71,13 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def main():
     application = Application.builder().token(BOT_TOKEN).build()
+     # هندلرهای راهنما
+    application.add_handler(CallbackQueryHandler(show_help, pattern=r'^help$'))
+    application.add_handler(CallbackQueryHandler(show_purchase_help, pattern=r'^help_purchase$'))
+    application.add_handler(CallbackQueryHandler(show_payment_help, pattern=r'^help_payment$'))
+    application.add_handler(CallbackQueryHandler(show_faq, pattern=r'^help_faq$'))
+    application.add_handler(CallbackQueryHandler(show_rules, pattern=r'^help_rules$'))
+    
     # هندلر افزودن اپل آیدی
     apple_id_conv_handler = ConversationHandler(
         entry_points=[CallbackQueryHandler(add_apple_id_start, pattern=r'^add_apple_id$')],
