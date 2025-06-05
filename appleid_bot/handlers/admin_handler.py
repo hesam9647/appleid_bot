@@ -493,4 +493,53 @@ async def confirm_apple_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]])
         )
 
-# اضافه کردن سایر توابع مورد نیاز...
+async def handle_payment_approval(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """هندلر تأیید پرداخت توسط ادمین"""
+    query = update.callback_query
+    await query.answer()
+    
+    action, payment_id = query.data.split('_')[1:]
+    payment_info = db.get_payment(payment_id)
+    
+    if not payment_info:
+        await query.message.edit_text("❌ اطلاعات پرداخت یافت نشد!")
+        return
+    
+    if action == 'approve':
+        # افزایش موجودی کاربر
+        success = db.update_balance(payment_info['user_id'], payment_info['amount'])
+        if success:
+            # ارسال پیام به کاربر
+            try:
+                await context.bot.send_message(
+                    chat_id=payment_info['user_id'],
+                    text=f"✅ پرداخت شما تأیید شد!\n\n"
+                         f"💰 مبلغ: {payment_info['amount']:,} تومان\n"
+                         f"🔑 کد پیگیری: {payment_id}\n\n"
+                         "موجودی کیف پول شما به‌روز شد."
+                )
+            except Exception as e:
+                print(f"Error notifying user: {e}")
+            
+            await query.message.edit_text(
+                f"✅ پرداخت با کد {payment_id} تأیید شد."
+            )
+        else:
+            await query.message.edit_text("❌ خطا در به‌روزرسانی موجودی!")
+    
+    elif action == 'reject':
+        # ارسال پیام به کاربر
+        try:
+            await context.bot.send_message(
+                chat_id=payment_info['user_id'],
+                text=f"❌ پرداخت شما تأیید نشد!\n\n"
+                     f"🔑 کد پیگیری: {payment_id}\n\n"
+                     "لطفاً با پشتیبانی تماس بگیرید."
+            )
+        except Exception as e:
+            print(f"Error notifying user: {e}")
+        
+        await query.message.edit_text(
+            f"❌ پرداخت با کد {payment_id} رد شد."
+        )
+

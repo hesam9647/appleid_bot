@@ -11,16 +11,19 @@ async def handle_buy_service(update: Update, context: ContextTypes.DEFAULT_TYPE)
     query = update.callback_query
     await query.answer()
     
-    keyboard = [
-        [InlineKeyboardButton("🔰 اپل آیدی معمولی - 100,000 تومان", callback_data='buy_normal')],
-        [InlineKeyboardButton("⭐️ اپل آیدی ویژه - 200,000 تومان", callback_data='buy_premium')],
-        [InlineKeyboardButton("🔙 بازگشت", callback_data='back_to_main')]
-    ]
-    
+    from keyboards.user_keyboards import buy_service_keyboard
     await query.message.edit_text(
-        "🛍 خرید اپل آیدی\n\n"
-        "لطفاً نوع سرویس مورد نظر خود را انتخاب کنید:",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        "🛍 فروشگاه اپل آیدی\n\n"
+        "✨ اپل آیدی ویژه:\n"
+        "• امکان تغییر ایمیل و پسورد\n"
+        "• پشتیبانی ویژه\n"
+        "• گارانتی 3 ماهه\n\n"
+        "🔰 اپل آیدی معمولی:\n"
+        "• تحویل فوری\n"
+        "• پشتیبانی عادی\n"
+        "• گارانتی 1 ماهه\n\n"
+        "لطفاً نوع اپل آیدی مورد نظر خود را انتخاب کنید:",
+        reply_markup=buy_service_keyboard()
     )
 
 async def handle_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -60,8 +63,8 @@ async def handle_buy_confirmation(update: Update, context: ContextTypes.DEFAULT_
     query = update.callback_query
     await query.answer()
     
-    apple_id_type = query.data.split('_')[1]  # normal یا premium
-    price = 100000 if apple_id_type == 'normal' else 200000
+    apple_id_type = query.data.split('_')[1]
+    price = 200000 if apple_id_type == 'premium' else 100000
     
     user = db.get_user(query.from_user.id)
     if not user or user['balance'] < price:
@@ -70,13 +73,14 @@ async def handle_buy_confirmation(update: Update, context: ContextTypes.DEFAULT_
             [InlineKeyboardButton("🔙 بازگشت", callback_data='back_to_buy')]
         ]
         await query.message.edit_text(
-            "❌ موجودی کافی نیست!\n"
-            f"موجودی مورد نیاز: {price:,} تومان\n"
-            f"موجودی فعلی: {user['balance']:,} تومان",
+            "❌ موجودی کافی نیست!\n\n"
+            f"💰 موجودی مورد نیاز: {price:,} تومان\n"
+            f"💳 موجودی فعلی: {user['balance']:,} تومان\n\n"
+            "برای افزایش موجودی کلیک کنید:",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
         return
-    
+
     # چک کردن موجود بودن اپل آیدی
     available_apple_id = db.get_available_apple_id(apple_id_type)
     if not available_apple_id:
@@ -87,17 +91,42 @@ async def handle_buy_confirmation(update: Update, context: ContextTypes.DEFAULT_
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
         return
+
+    # ایجاد سفارش
+    order_id = db.create_order(query.from_user.id, apple_id_type, price)
     
-    keyboard = [
-        [InlineKeyboardButton("✅ تأیید و خرید", callback_data=f'confirm_buy_{apple_id_type}')],
-        [InlineKeyboardButton("❌ انصراف", callback_data='back_to_buy')]
+    # ارسال نوتیفیکیشن به ادمین
+    admin_keyboard = [
+        [
+            InlineKeyboardButton("✅ تأیید", callback_data=f'approve_order_{order_id}'),
+            InlineKeyboardButton("❌ رد", callback_data=f'reject_order_{order_id}')
+        ]
     ]
     
+    admin_text = (
+        "🛍 سفارش جدید:\n\n"
+        f"👤 کاربر: {query.from_user.username}\n"
+        f"📦 نوع: {'ویژه' if apple_id_type == 'premium' else 'معمولی'}\n"
+        f"💰 مبلغ: {price:,} تومان\n"
+        f"🔑 شناسه سفارش: {order_id}"
+    )
+    
+    for admin_id in ADMIN_IDS:
+        try:
+            await context.bot.send_message(
+                chat_id=admin_id,
+                text=admin_text,
+                reply_markup=InlineKeyboardMarkup(admin_keyboard)
+            )
+        except Exception as e:
+            print(f"Error notifying admin {admin_id}: {e}")
+    
+    # پاسخ به کاربر
+    keyboard = [[InlineKeyboardButton("🔙 بازگشت به منو", callback_data='back_to_main')]]
     await query.message.edit_text(
-        f"📝 پیش‌نمایش خرید:\n\n"
-        f"نوع: {'معمولی' if apple_id_type == 'normal' else 'ویژه'}\n"
-        f"قیمت: {price:,} تومان\n"
-        f"موجودی شما: {user['balance']:,} تومان\n\n"
-        "آیا مایل به خرید هستید؟",
+        "✅ سفارش شما با موفقیت ثبت شد!\n\n"
+        "🕒 در حال بررسی توسط ادمین...\n"
+        "پس از تأیید، اطلاعات اپل آیدی ارسال خواهد شد.\n\n"
+        f"🔑 کد پیگیری: {order_id}",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
