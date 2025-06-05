@@ -1,5 +1,3 @@
-# apple_id_bot/main.py
-
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler, MessageHandler,
@@ -14,10 +12,16 @@ from keyboards.user_keyboards import main_menu_keyboard
 from handlers.user_handler import handle_buy_service, handle_wallet
 
 # هندلرهای پرداخت
-from handlers.payment_handler import handle_add_funds, process_payment, verify_payment, handle_back_to_wallet
+from handlers.payment_handler import (
+    handle_add_funds, process_payment, verify_payment, handle_back_to_wallet
+)
 
 # هندلرهای ادمین
-from handlers.admin_handler import admin_panel, manage_users, manage_apple_ids, add_apple_id
+from handlers.admin_handler import (
+    admin_panel, manage_users, manage_user, manage_apple_ids,
+    add_apple_id_start, add_apple_id_email, add_apple_id_password,
+    WAITING_FOR_EMAIL, WAITING_FOR_PASSWORD
+)
 
 # هندلرهای تیکت
 from handlers.ticket_handler import (
@@ -30,10 +34,8 @@ db = DatabaseManager()
 
 # هندلر start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """اجرای دستورات اولیه هنگام شروع ربات توسط کاربر"""
     user_id = update.effective_user.id
     username = update.effective_user.username
-
     db.add_user(user_id, username)
 
     await update.message.reply_text(
@@ -43,7 +45,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # هندلر لغو عملیات
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """لغو عملیات و بازگشت به منوی اصلی"""
     await update.message.reply_text(
         "عملیات لغو شد.",
         reply_markup=main_menu_keyboard()
@@ -51,10 +52,9 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 def main():
-    """تابع اصلی برای اجرای ربات"""
     application = Application.builder().token(BOT_TOKEN).build()
 
-    # ✅ هندلرهای اصلی
+    # ✅ هندلرهای عمومی
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("admin", admin_panel))
 
@@ -69,11 +69,23 @@ def main():
     application.add_handler(CallbackQueryHandler(handle_back_to_wallet, pattern=r'^back_to_wallet$'))
 
     # ✅ هندلرهای ادمین
+    application.add_handler(CallbackQueryHandler(admin_panel, pattern=r'^back_to_admin$'))
     application.add_handler(CallbackQueryHandler(manage_users, pattern=r'^admin_users$'))
+    application.add_handler(CallbackQueryHandler(manage_user, pattern=r'^user_\d+$'))
     application.add_handler(CallbackQueryHandler(manage_apple_ids, pattern=r'^admin_apple_ids$'))
-    application.add_handler(CallbackQueryHandler(add_apple_id, pattern=r'^add_apple_id$'))
 
-    # ✅ هندلرهای تیکت پشتیبانی (ConversationHandler)
+    # ✅ ConversationHandler برای افزودن اپل آیدی
+    apple_id_conv_handler = ConversationHandler(
+        entry_points=[CallbackQueryHandler(add_apple_id_start, pattern=r'^add_apple_id$')],
+        states={
+            WAITING_FOR_EMAIL: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_apple_id_email)],
+            WAITING_FOR_PASSWORD: [MessageHandler(filters.TEXT & ~filters.COMMAND, add_apple_id_password)],
+        },
+        fallbacks=[CallbackQueryHandler(admin_panel, pattern=r'^back_to_admin$')],
+    )
+    application.add_handler(apple_id_conv_handler)
+
+    # ✅ ConversationHandler تیکت پشتیبانی
     ticket_conv_handler = ConversationHandler(
         entry_points=[CallbackQueryHandler(start_ticket, pattern=r'^new_ticket$')],
         states={
@@ -85,7 +97,7 @@ def main():
     application.add_handler(ticket_conv_handler)
     application.add_handler(CallbackQueryHandler(view_tickets, pattern=r'^view_tickets$'))
 
-    # ✅ اجرای ربات
+    # ✅ شروع ربات
     print("✅ Bot started successfully...")
     application.run_polling()
 
